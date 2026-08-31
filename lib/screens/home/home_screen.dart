@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../core/state/easytier_controller.dart';
-import '../../data/models/peer_info.dart';
 import '../../data/models/tunnel_state.dart';
 import '../../widgets/astral_card.dart';
 import '../../widgets/connection_hero_card.dart';
