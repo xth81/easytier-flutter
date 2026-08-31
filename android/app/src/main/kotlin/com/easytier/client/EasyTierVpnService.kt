@@ -246,11 +246,16 @@ class EasyTierVpnService : VpnService() {
                 return@execute
             }
 
+            // Wait for the core to report this node's virtual IP before
+            // building the TUN. This mirrors the official client: in DHCP
+            // mode the address must be the one the core actually assigned.
+            val assignedIpv4 = awaitNodeIpv4()
+
             // TUN must be established on a looper/main thread of the service;
             // hop back to the main thread, then hand the fd to the core.
             mainHandler.post {
                 try {
-                    val descriptor = establishTunnel()
+                    val descriptor = establishTunnel(assignedIpv4)
                     tun = descriptor
                     startForeground(NOTIFICATION_ID, buildNotification(instanceName))
 
@@ -273,6 +278,54 @@ class EasyTierVpnService : VpnService() {
             }
         }
         return 0
+    }
+
+    /**
+     * Poll `collectNetworkInfos` until this instance's `virtual_ipv4` is
+     * available (up to ~20s). Returns the plain address (no prefix) to put
+     * on the VPN interface, or falls back to the placeholder address.
+     */
+    private fun awaitNodeIpv4(): String {
+        val placeholder = EasyTierStateStore.readIpv4(this)
+            ?.substringBefore("/")
+            ?.takeIf { it.isNotBlank() }
+            ?: "10.144.144.100"
+        val deadline = System.currentTimeMillis() + 20_000
+        while (System.currentTimeMillis() < deadline) {
+            try {
+                val infos = EasyTierJni.collectNetworkInfosSafe() ?: return placeholder
+                val json = org.json.JSONObject(infos)
+                val map = json.optJSONObject("map") ?: json
+                val entry = map.optJSONObject(instanceName) ?: map.optJSONObject("easytier")
+                val node = entry?.optJSONObject("my_node_info")
+                val v4 = node?.optJSONObject("virtual_ipv4")
+                val addr = v4?.optJSONObject("address")
+                val raw = addr?.opt("addr")
+                val ip = when (raw) {
+                    is org.json.JSONArray ->
+                        (0 until raw.length()).joinToString(".") { raw.getInt(it).toString() }
+                    is Number -> {
+                        val value = raw.toLong()
+                        listOf(
+                            (value shr 24) and 0xFF,
+                            (value shr 16) and 0xFF,
+                            (value shr 8) and 0xFF,
+                            value and 0xFF,
+                        ).joinToString(".")
+                    }
+                    else -> null
+                }
+                if (!ip.isNullOrBlank() && ip != "0.0.0.0") {
+                    Log.i(TAG, "core assigned virtual IPv4 $ip")
+                    return ip
+                }
+            } catch (_: Throwable) {
+                // keep polling
+            }
+            Thread.sleep(500)
+        }
+        Log.w(TAG, "virtual IPv4 not assigned in time; using $placeholder")
+        return placeholder
     }
 
     private fun doStop(): Int {
@@ -331,13 +384,14 @@ class EasyTierVpnService : VpnService() {
 
     // ---- VPN tunnel ----
 
-    private fun establishTunnel(): ParcelFileDescriptor {
+    private fun establishTunnel(ipv4: String): ParcelFileDescriptor {
         val builder = Builder()
             .setSession("EasyTier")
             .setMtu(1380)
             .setBlocking(false)
 
-        val ipv4 = EasyTierStateStore.readIpv4(this) ?: "10.144.144.100"
+        // The address was either user-specified (static mode) or read back
+        // from the core (DHCP mode) in awaitNodeIpv4().
         val cidr = ipv4.split("/")
         val prefix = if (cidr.size > 1) cidr[1].toIntOrNull() ?: 24 else 24
         builder.addAddress(cidr[0], prefix)

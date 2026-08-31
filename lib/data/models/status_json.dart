@@ -212,11 +212,34 @@ class EasyTierStatusJson {
 
   static String _natType(Object? stun) {
     if (stun is! Map) return '';
-    final udp = stun['udp_nat_type'];
-    if (udp is String && udp.isNotEmpty && udp != 'Unknown') return udp;
-    final tcp = stun['tcp_nat_type'];
-    if (tcp is String && tcp.isNotEmpty && tcp != 'Unknown') return tcp;
-    return '';
+    // pbjson serializes enums as their name; older clients may send numeric
+    // enum values (see NatType order: 0 Unknown, 1 OpenInternet, 2 NoPAT,
+    // 3 FullCone, 4 Restricted, 5 PortRestricted, 6 Symmetric).
+    const byNumber = [
+      'Unknown',
+      'OpenInternet',
+      'NoPAT',
+      'FullCone',
+      'Restricted',
+      'PortRestricted',
+      'Symmetric',
+      'SymUdpFirewall',
+      'SymmetricEasyInc',
+      'SymmetricEasyDec',
+    ];
+    final udp = _natValue(stun['udp_nat_type'], byNumber);
+    if (udp != null) return udp;
+    final tcp = _natValue(stun['tcp_nat_type'], byNumber);
+    return tcp ?? '';
+  }
+
+  static String? _natValue(Object? v, List<String> byNumber) {
+    if (v is String && v.isNotEmpty && v != 'Unknown') return v;
+    if (v is num && v.toInt() > 0 && v.toInt() < byNumber.length) {
+      final name = byNumber[v.toInt()];
+      if (name != 'Unknown') return name;
+    }
+    return null;
   }
 
   static String? _ipv4InetToString(Object? inet) {
@@ -224,17 +247,32 @@ class EasyTierStatusJson {
     final addr = _ipv4AddrToString(inet['address']);
     if (addr == null) return null;
     final prefix = inet['network_length'];
-    if (prefix is num) return '$addr/$prefix';
+    if (prefix is num && prefix > 0) return '$addr/$prefix';
     return addr;
   }
 
+  /// Extracts the IPv4 from either protobuf JSON shape:
+  ///  * `{"addr": 179040778}` (uint32 host-byte-order) or
+  ///  * `{"addr": [10, 144, 144, 100]}` (array form).
   static String? _ipv4AddrToString(Object? addrObj) {
     if (addrObj is! Map) return null;
-    final addr = addrObj['addr'];
-    if (addr is! List) return null;
-    final octets = addr.whereType<num>().map((e) => e.toInt()).toList();
-    if (octets.length != 4) return null;
-    return octets.join('.');
+    final raw = addrObj['addr'];
+    if (raw is List) {
+      final octets = raw.whereType<num>().map((e) => e.toInt()).toList();
+      if (octets.length != 4) return null;
+      return octets.join('.');
+    }
+    if (raw is num) {
+      final value = raw.toInt();
+      if (value < 0 || value > 0xFFFFFFFF) return null;
+      return [
+        (value >> 24) & 0xFF,
+        (value >> 16) & 0xFF,
+        (value >> 8) & 0xFF,
+        value & 0xFF,
+      ].join('.');
+    }
+    return null;
   }
 
   static String? _firstIpv4(Object? ips) {
