@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/state/easytier_controller.dart';
-import '../data/models/connection_state.dart';
+import '../data/models/tunnel_state.dart';
 import '../data/models/network_status.dart';
 import 'astral_card.dart';
 
@@ -55,30 +55,32 @@ class ConnectionHeroCard extends StatelessWidget {
     );
   }
 
-  String _title(ConnectionState state) {
+  String _title(TunnelState state) {
     switch (state) {
-      case ConnectionState.disconnected:
+      case TunnelState.disconnected:
         return '未连接';
-      case ConnectionState.connecting:
+      case TunnelState.connecting:
         return '正在连接';
-      case ConnectionState.connected:
+      case TunnelState.connected:
         return '已连接';
-      case ConnectionState.error:
+      case TunnelState.error:
         return '连接出错';
-      case ConnectionState.waiting:
+      case TunnelState.waiting:
         return '等待节点';
     }
+    // Defensive fallback (unreachable for a closed enum).
+    return '未知状态';
   }
 
   String _subtitle(NetworkStatus status) {
-    if (status.state == ConnectionState.connected) {
+    if (status.state == TunnelState.connected) {
       final ip = status.ipv4 ?? 'IP 未分配';
       return '虚拟 IP: $ip  ·  ${status.peerCount} 个节点可达';
     }
-    if (status.state == ConnectionState.connecting) {
+    if (status.state == TunnelState.connecting) {
       return '正在建立到其它节点的连接…';
     }
-    if (status.state == ConnectionState.waiting) {
+    if (status.state == TunnelState.waiting) {
       return '网络已启动，等待节点接入';
     }
     return '点击按钮加入 EasyTier 网络';
@@ -108,15 +110,15 @@ class _StatusRing extends StatelessWidget {
 
   Color get _color {
     switch (status.state) {
-      case ConnectionState.connected:
+      case TunnelState.connected:
         return const Color(0xFF00C853);
-      case ConnectionState.connecting:
+      case TunnelState.connecting:
         return scheme.tertiary;
-      case ConnectionState.waiting:
+      case TunnelState.waiting:
         return scheme.primary;
-      case ConnectionState.error:
+      case TunnelState.error:
         return scheme.error;
-      case ConnectionState.disconnected:
+      case TunnelState.disconnected:
         return scheme.outline;
     }
   }
@@ -124,7 +126,7 @@ class _StatusRing extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = _color;
-    final isConnecting = status.state == ConnectionState.connecting;
+    final isConnecting = status.state == TunnelState.connecting;
     return SizedBox(
       width: 96,
       height: 96,
@@ -148,7 +150,7 @@ class _StatusRing extends StatelessWidget {
               ),
             ),
           Icon(
-            status.state == ConnectionState.connected
+            status.state == TunnelState.connected
                 ? Icons.check_rounded
                 : Icons.shield_outlined,
             size: 40,

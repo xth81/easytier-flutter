@@ -1,4 +1,3 @@
-import '../../data/models/connection_state.dart';
 import '../../data/models/network_config.dart';
 import '../../data/models/network_status.dart';
 import '../../data/models/peer_info.dart';

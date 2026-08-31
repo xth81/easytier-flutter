@@ -1,8 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../backend/backend_factory.dart';
 import '../backend/easytier_backend.dart';
-import '../../data/models/connection_state.dart';
+import '../../data/models/tunnel_state.dart';
 import '../../data/models/network_config.dart';
 import '../../data/models/network_status.dart';
 import '../../data/models/peer_info.dart';
@@ -30,8 +32,8 @@ class EasyTierController extends ChangeNotifier {
   List<RouteInfo> get routes => _routes;
   NetworkConfig? get activeConfig => _activeConfig;
   EasyTierBackend get backend => _backend;
-  bool get isConnected => _status.state == ConnectionState.connected;
-  bool get isConnecting => _status.state == ConnectionState.connecting;
+  bool get isConnected => _status.state == TunnelState.connected;
+  bool get isConnecting => _status.state == TunnelState.connecting;
 
   /// Create a controller, auto-selecting mock vs FFI backend.
   static Future<EasyTierController> create({bool forceMock = false}) async {
@@ -88,7 +90,7 @@ class EasyTierController extends ChangeNotifier {
   @override
   void dispose() {
     _backend.listener = null;
-    _backend.dispose();
+    unawaited(_backend.dispose());
     super.dispose();
   }
 }

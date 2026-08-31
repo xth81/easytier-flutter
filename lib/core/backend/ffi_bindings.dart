@@ -7,9 +7,7 @@ import 'dart:ffi';
 /// (see `ffi_backend.dart`), which resolves each symbol via
 /// `DynamicLibrary.lookup`. This file only holds the shared FFI struct types.
 final class KeyValuePair extends Struct {
-  @Pointer<Int8>()
   external Pointer<Int8> key;
 
-  @Pointer<Int8>()
   external Pointer<Int8> value;
 }

@@ -92,7 +92,6 @@ class SettingsScreen extends StatelessWidget {
   }
 
   Widget _modeSelector(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return Row(
       children: [
         _modeChip(context, ThemeMode.light, Icons.light_mode, '浅色'),

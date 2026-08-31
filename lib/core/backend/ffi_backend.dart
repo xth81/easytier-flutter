@@ -4,7 +4,7 @@ import 'dart:ffi' as ffi;
 
 import 'package:ffi/ffi.dart';
 
-import '../../data/models/connection_state.dart';
+import '../../data/models/tunnel_state.dart';
 import '../../data/models/network_config.dart';
 import '../../data/models/network_status.dart';
 import '../../data/models/peer_info.dart';
@@ -12,8 +12,8 @@ import 'easytier_backend.dart';
 import 'ffi_bindings.dart';
 
 /// Legacy convenience typedef so a caller can bind the native library.
-typedef _ParseConfigNative = Int32 Function(Pointer<Int8> cfg);
-typedef _ParseConfigDart = int Function(Pointer<Int8> cfg);
+typedef _ParseConfigNative = ffi.Int32 Function(ffi.Pointer<ffi.Int8> cfg);
+typedef _ParseConfigDart = int Function(ffi.Pointer<ffi.Int8> cfg);
 
 /// An [EasyTierBackend] backed by the real embeddable EasyTier Rust core,
 /// loaded via the `easytier-ffi` C ABI.
@@ -38,7 +38,7 @@ class EasyTierFfiBackend implements EasyTierBackend {
   final String libraryName;
   final Duration pollInterval;
 
-  DynamicLibrary? _lib;
+  ffi.DynamicLibrary? _lib;
   Timer? _poll;
   bool _running = false;
   String _currentInstance = NetworkConfig.defaultInstanceName;
@@ -64,7 +64,7 @@ class EasyTierFfiBackend implements EasyTierBackend {
 
   @override
   Future<void> initialize() async {
-    _lib = DynamicLibrary.open(libraryName);
+    _lib = ffi.DynamicLibrary.open(libraryName);
     _setStatus(NetworkStatus.disconnected);
   }
 
@@ -108,7 +108,7 @@ class EasyTierFfiBackend implements EasyTierBackend {
     _running = true;
     _currentInstance = config.instanceName;
     _setStatus(NetworkStatus(
-      state: ConnectionState.connecting,
+      state: TunnelState.connecting,
       instanceName: config.instanceName,
       running: true,
     ));
@@ -160,7 +160,7 @@ class EasyTierFfiBackend implements EasyTierBackend {
   @override
   Future<void> refresh() async => _refreshOnce();
 
-  DynamicLibrary _requireLib() {
+  ffi.DynamicLibrary _requireLib() {
     final lib = _lib;
     if (lib == null) {
       throw BackendException('FFI library not initialized');
@@ -190,7 +190,7 @@ class EasyTierFfiBackend implements EasyTierBackend {
     try {
       getErr(outPtr);
       final msg = outPtr.value;
-      if (msg == nullptr) return '';
+      if (msg == ffi.nullptr) return '';
       final s = msg.toDartString();
       lib.lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Int8>)>>(
           'free_string')(msg);
@@ -233,13 +233,13 @@ class EasyTierFfiBackend implements EasyTierBackend {
     }
     final peerCount = _peers.length;
     return NetworkStatus(
-      state: ConnectionState.connected,
+      state: TunnelState.connected,
       instanceName: _currentInstance,
       ipv4: _stringValue(map['ipv4']),
       peerCount: peerCount,
       latencyMs: _intValue(map['best_latency']),
-      rxBytesPerSec: _intValue(map['rx_bytes_per_sec']),
-      txBytesPerSec: _intValue(map['tx_bytes_per_sec']),
+      rxBytesPerSec: _intValue(map['rx_bytes_per_sec']) ?? 0,
+      txBytesPerSec: _intValue(map['tx_bytes_per_sec']) ?? 0,
       running: true,
       detail: map.toString(),
     );
@@ -260,7 +260,7 @@ class EasyTierFfiBackend implements EasyTierBackend {
         .map((p) => PeerInfo(
               hostname: _stringValue(p['hostname']) ?? 'peer',
               ipv4: _stringValue(p['ipv4']) ?? '0.0.0.0',
-              latencyMs: _intValue(p['latency']),
+              latencyMs: _intValue(p['latency']) ?? 0,
               direct: _boolValue(p['direct']),
               natType: _stringValue(p['nat_type']) ?? '',
             ))

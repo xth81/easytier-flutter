@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 
-import '../../data/models/connection_state.dart';
+import '../../data/models/tunnel_state.dart';
 import '../../data/models/network_config.dart';
 import '../../data/models/network_status.dart';
 import '../../data/models/peer_info.dart';
@@ -12,7 +12,7 @@ import 'easytier_backend.dart';
 ///
 /// It exercises the exact same lifecycle (connect -> mesh -> traffic) so the
 /// UI behaves realistically even without a device:
-///  * `start` transitions [ConnectionState.connecting] then `connected`.
+///  * `start` transitions [TunnelState.connecting] then `connected`.
 ///  * A timer simulates peers joining, latency jitter, and traffic counters.
 ///  * `stop` tears everything down and returns to `disconnected`.
 class MockEasyTierBackend implements EasyTierBackend {
@@ -29,8 +29,6 @@ class MockEasyTierBackend implements EasyTierBackend {
   NetworkStatus _status = NetworkStatus.disconnected;
   int _rx = 0;
   int _tx = 0;
-  int _lastRx = 0;
-  int _lastTx = 0;
   bool _running = false;
 
   @override
@@ -74,7 +72,7 @@ class MockEasyTierBackend implements EasyTierBackend {
     _tx = 0;
 
     _setStatus(NetworkStatus(
-      state: ConnectionState.connecting,
+      state: TunnelState.connecting,
       instanceName: config.instanceName,
       running: true,
     ));
@@ -102,7 +100,7 @@ class MockEasyTierBackend implements EasyTierBackend {
       ),
     );
     _setStatus(NetworkStatus(
-      state: ConnectionState.connected,
+      state: TunnelState.connected,
       instanceName: _config?.instanceName ?? '',
       ipv4: _config?.ipv4 ?? '10.0.0.1',
       peerCount: _peers.length,
@@ -115,12 +113,9 @@ class MockEasyTierBackend implements EasyTierBackend {
     if (!_running) return;
 
     // Simulate fluctuating traffic.
-    _lastRx = _rx;
-    _lastTx = _tx;
     _rx = _random.nextInt(600 * 1024);
     _tx = _random.nextInt(300 * 1024);
 
-    final now = DateTime.now().millisecondsSinceEpoch;
     // Small chance a peer disconnects / reconnects to exercise the UI.
     if (_peers.isNotEmpty && _random.nextInt(40) == 0) {
       _peers.removeAt(_random.nextInt(_peers.length));

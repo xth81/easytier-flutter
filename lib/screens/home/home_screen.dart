@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../core/state/easytier_controller.dart';
-import '../../data/models/connection_state.dart';
+import '../../data/models/tunnel_state.dart';
 import '../../data/models/peer_info.dart';
 import '../../widgets/astral_card.dart';
 import '../../widgets/connection_hero_card.dart';
@@ -28,7 +28,6 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   Timer? _clock;
-  int _uptime = 0;
 
   @override
   void initState() {
@@ -150,7 +149,7 @@ class _PeersCard extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 24),
               child: Center(
                 child: Text(
-                  controller.status.state == ConnectionState.connected
+                  controller.status.state == TunnelState.connected
                       ? '暂无其它节点加入'
                       : '连接后显示可达节点',
                   style: TextStyle(color: scheme.onSurfaceVariant),

@@ -122,7 +122,7 @@ class _EasyTierAppState extends State<EasyTierApp> {
       _controller = next;
       _controller.addListener(_onControllerChanged);
     });
-    await old.dispose();
+    old.dispose();
     widget.onControllerChanged?.call(next);
   }
 }

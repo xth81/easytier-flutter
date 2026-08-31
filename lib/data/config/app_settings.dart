@@ -67,13 +67,13 @@ class AppSettings {
     );
   }
 
-  String _encodeColor(Color c) =>
-      jsonEncode([c.red, c.green, c.blue, c.alpha]);
+  String _encodeColor(Color c) => jsonEncode([c.toARGB32()]);
 
   Color? _decodeColor(String? encoded) {
     if (encoded == null) return null;
     try {
       final list = (jsonDecode(encoded) as List).cast<int>();
+      if (list.length == 1) return Color(list[0]);
       return Color.fromARGB(list[3], list[0], list[1], list[2]);
     } catch (_) {
       return null;

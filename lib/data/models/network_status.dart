@@ -1,9 +1,9 @@
-import 'connection_state.dart';
+import 'tunnel_state.dart';
 
 /// Aggregate, normalized status snapshot the backend publishes to the UI.
 class NetworkStatus {
   /// Derived high-level state.
-  final ConnectionState state;
+  final TunnelState state;
 
   /// The name of the running network instance, if any.
   final String instanceName;
@@ -42,7 +42,7 @@ class NetworkStatus {
   });
 
   static const NetworkStatus disconnected = NetworkStatus(
-    state: ConnectionState.disconnected,
+    state: TunnelState.disconnected,
     running: false,
   );
 
@@ -51,7 +51,7 @@ class NetworkStatus {
   bool get isRunning => running;
 
   NetworkStatus copyWith({
-    ConnectionState? state,
+    TunnelState? state,
     String? instanceName,
     String? ipv4,
     int? peerCount,

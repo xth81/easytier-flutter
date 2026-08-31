@@ -2,7 +2,7 @@
 ///
 /// These mirror the states the EasyTier core can report through the
 /// backend, normalized so the UI never has to reason about core internals.
-enum ConnectionState {
+enum TunnelState {
   /// No network instance is running.
   disconnected,
 

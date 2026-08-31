@@ -164,7 +164,7 @@ class _NetworksScreenState extends State<NetworksScreen> {
               ),
               const SizedBox(height: 12),
               ActionChip(
-                label: const Text(_showAdvanced ? '收起高级选项' : '查看高级选项'),
+                label: Text(_showAdvanced ? '收起高级选项' : '查看高级选项'),
                 avatar: Icon(_showAdvanced ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down),
                 onPressed: () => setState(() => _showAdvanced = !_showAdvanced),
               ),
@@ -172,24 +172,34 @@ class _NetworksScreenState extends State<NetworksScreen> {
           ),
         ),
         const SizedBox(height: 24),
-        SizedBox(
-          maxWidth: 560,
-          child: FilledButton.icon(
-            onPressed: _save,
-            icon: const Icon(Icons.play_arrow),
-            label: const Text('应用并连接'),
+        Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 560),
+            child: SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: _save,
+                icon: const Icon(Icons.play_arrow),
+                label: const Text('应用并连接'),
+              ),
+            ),
           ),
         ),
         const SizedBox(height: 12),
-        SizedBox(
-          maxWidth: 560,
-          child: OutlinedButton.icon(
-            onPressed: () async {
-              await widget.controller.stop();
-              _snack('已断开连接');
-            },
-            icon: const Icon(Icons.stop),
-            label: const Text('断开连接'),
+        Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 560),
+            child: SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () async {
+                  await widget.controller.stop();
+                  _snack('已断开连接');
+                },
+                icon: const Icon(Icons.stop),
+                label: const Text('断开连接'),
+              ),
+            ),
           ),
         ),
       ],
