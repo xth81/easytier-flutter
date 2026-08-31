@@ -7,13 +7,14 @@ import 'tunnel_state.dart';
 /// Parser for the JSON snapshot produced by the official EasyTier FFI /
 /// Android-JNI layer (`collect_network_infos`).
 ///
-/// Shape (per instance key in the map):
+/// Shape (per instance key in the map; pbjson serializes `Ipv4Addr.addr`
+/// as the raw uint32 value — both number and array forms are accepted):
 /// ```json
 /// {
 ///   "running": true,
 ///   "error_msg": null,
 ///   "my_node_info": {
-///      "virtual_ipv4": {"address": {"addr": [10,144,144,100]}, "network_length": 24},
+///      "virtual_ipv4": {"address": {"addr": 179040778}, "network_length": 24},
 ///      "hostname": "node-1",
 ///      "ips": {"ipv4_addrs": [...], "ipv6_addrs": [...], "stun_udp_ip_addrs": [...]},
 ///      "stun_info": {"udp_nat_type": "FullCone", "tcp_nat_type": "..."}
@@ -22,11 +23,11 @@ import 'tunnel_state.dart';
 ///      {"peer_id": 1, "default_conn_id": "...", "directly_connected_conns": ["..."],
 ///       "conns": [{"conn_id": "...", "is_closed": false,
 ///                  "stats": {"rx_bytes": 0, "tx_bytes": 0, "latency_us": 3000},
-///                  "tunnel": {"tunnel_type": "p2p_udp"},
+///                  "tunnel": {"tunnel_type": "udp"},
 ///                  "network_name": "..."}]}
 ///   ],
 ///   "routes": [
-///      {"ipv4_addr": {"address": {"addr": [...]}, "network_length": 24},
+///      {"ipv4_addr": {"address": {"addr": ...}, "network_length": 24},
 ///       "next_hop_peer_id": 2, "cost": 1, "path_latency": 12,
 ///       "hostname": "node-2", "proxy_cidrs": ["192.168.1.0/24"]}
 ///   ]
@@ -132,13 +133,13 @@ class EasyTierStatusJson {
 
       final peerConns = connsByPeer[nextHop];
       final conns = _activeConns(peerConns?['conns']);
-      final stats = _connStats(conns);
+      final latencyMs = _connStats(conns)['latencyMs'] ?? 0;
       final direct = peerConns != null && _isDirect(peerConns);
 
       result.add(PeerInfo(
         hostname: hostname,
         ipv4: ipv4,
-        latencyMs: stats['latencyMs'] ?? 0,
+        latencyMs: latencyMs,
         direct: direct,
         natType: natType,
       ));
@@ -277,13 +278,14 @@ class EasyTierStatusJson {
 
   static String? _firstIpv4(Object? ips) {
     if (ips is! Map) return null;
-    final v4 = ips['ipv4_addrs'];
+    // GetIpListResponse: repeated Ipv4Addr interface_ipv4s.
+    final v4 = ips['interface_ipv4s'];
     if (v4 is List && v4.isNotEmpty) {
       return _ipv4AddrToString(v4.first);
     }
-    final stun = ips['stun_udp_ip_addrs'];
-    if (stun is List && stun.isNotEmpty) {
-      return _ipv4AddrToString(stun.first);
+    final pub = ips['public_ipv4'];
+    if (pub != null) {
+      return _ipv4AddrToString(pub);
     }
     return null;
   }
