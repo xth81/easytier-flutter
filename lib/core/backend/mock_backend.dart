@@ -20,7 +20,6 @@ class MockEasyTierBackend implements EasyTierBackend {
 
   final Random _random;
   Timer? _tick;
-  int _startedAt = 0;
 
   NetworkConfig? _config;
   List<PeerInfo> _peers = [];
@@ -68,7 +67,6 @@ class MockEasyTierBackend implements EasyTierBackend {
     _peers = [];
     _routes.clear();
     _running = true;
-    _startedAt = DateTime.now().millisecondsSinceEpoch;
     _rx = 0;
     _tx = 0;
 
@@ -175,8 +173,4 @@ class MockEasyTierBackend implements EasyTierBackend {
   Future<void> refresh() async {
     if (_running) _meshUp();
   }
-
-  /// Total running time in seconds, for the dashboard timer.
-  int get uptimeSeconds =>
-      _running ? (DateTime.now().millisecondsSinceEpoch - _startedAt) ~/ 1000 : 0;
 }
