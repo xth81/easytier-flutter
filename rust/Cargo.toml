@@ -1,0 +1,35 @@
+# Vendored EasyTier Rust workspace.
+#
+# This is a trimmed copy of the official EasyTier workspace (upstream:
+# https://github.com/EasyTier/EasyTier) containing only the crates the Flutter
+# client needs on Android: easytier-core / easytier-proto / easytier /
+# easytier-ffi / easytier-android-jni.
+#
+# `easytier-android-jni` is the default member: `cargo build` here produces
+# libeasytier_android_jni.so (which links libeasytier_ffi.so), exactly what
+# android/ and the GitHub Actions workflow package into the APK.
+[workspace]
+resolver = "2"
+members = [
+    "easytier-core",
+    "easytier-proto",
+    "easytier",
+    "easytier-contrib/easytier-ffi",
+    "easytier-contrib/easytier-android-jni",
+]
+default-members = ["easytier-contrib/easytier-android-jni"]
+
+[workspace.package]
+edition = "2024"
+rust-version = "1.95"
+
+[profile.dev]
+panic = "unwind"
+debug = 2
+
+[profile.release]
+panic = "abort"
+lto = true
+codegen-units = 1
+opt-level = 3
+strip = true

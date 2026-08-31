@@ -3,6 +3,8 @@ name: Build Android APK
 on:
   push:
     branches: [main, master]
+    paths:
+      - "**"
   pull_request:
     branches: [main, master]
   # Allow manual trigger from the Actions tab.
@@ -13,8 +15,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    # The Flutter project lives at the repo root (easy path) or under
-    # easytier-flutter/. Auto-detect below.
+    env:
+      CARGO_TERM_COLOR: always
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -25,8 +27,10 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Set up Android SDK
+      - name: Set up Android SDK (with NDK)
         uses: android-actions/setup-android@v3
+        with:
+          packages: "platforms;android-34 build-tools;34.0.0 ndk;26.1.10909125"
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -51,14 +55,36 @@ jobs:
       - name: Flutter version
         run: flutter --version
 
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.95"
+
+      - name: Set up Android Rust targets
+        working-directory: ${{ steps.proj.outputs.proj }}/rust
+        run: |
+          rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
+          cargo install cargo-ndk
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "${{ steps.proj.outputs.proj }}/rust"
+
+      - name: Build EasyTier Rust core (Android ABIs)
+        working-directory: ${{ steps.proj.outputs.proj }}/rust
+        env:
+          ANDROID_NDK_HOME: ${{ env.ANDROID_NDK_HOME }}
+          NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/26.1.10909125
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          echo "ANDROID_NDK_HOME=${ANDROID_NDK_HOME:-$ANDROID_HOME/ndk/26.1.10909125}"
+          ./build.sh arm64-v8a armeabi-v7a x86_64
+
       - name: Configure Android local.properties
         shell: bash
         working-directory: ${{ steps.proj.outputs.proj }}
         run: |
-          # Provide the SDK + Flutter paths Gradle needs. subosito/flutter-action
-          # sets FLUTTER_ROOT; the runner exposes the Android SDK via ANDROID_HOME
-          # (android-actions/setup-android). Write local.properties so our
-          # settings.gradle.kts can resolve flutter.sdk regardless of action wiring.
           echo "flutter.sdk=$FLUTTER_ROOT" > android/local.properties
           echo "sdk.dir=${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}" >> android/local.properties
           echo "Written android/local.properties:"
@@ -82,7 +108,7 @@ jobs:
 
       - name: Build release APK
         working-directory: ${{ steps.proj.outputs.proj }}
-        run: flutter build apk --release
+        run: flutter build apk --release --split-per-abi
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
@@ -90,21 +116,30 @@ jobs:
           name: easytier-debug-apk
           path: ${{ steps.proj.outputs.proj }}/build/app/outputs/flutter-apk/app-debug.apk
 
-      - name: Upload release APK
+      - name: Upload release APKs
         uses: actions/upload-artifact@v4
         with:
-          name: easytier-release-apk
-          path: ${{ steps.proj.outputs.proj }}/build/app/outputs/flutter-apk/app-release.apk
+          name: easytier-release-apks
+          path: |
+            ${{ steps.proj.outputs.proj }}/build/app/outputs/flutter-apk/app-*-release.apk
+            ${{ steps.proj.outputs.proj }}/build/app/outputs/flutter-apk/*.sha1
 
       - name: Publish GitHub Release (latest)
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
-          name: 'EasyTier Flutter Client (latest)'
+          name: "EasyTier Flutter Client (latest)"
           body: |
-            Android APK（Material 3 / astral 风格）。
-            - Material 3 客户端：状态仪表盘、网络配置、节点/路由、设置。
-            - FFI 真实核心 + Mock 模拟双后端。
+            Android APK（Material 3 风格，内置官方 EasyTier Rust 核心）。
+
+            - 真实核心：`easytier-android-jni` + `easytier-ffi` 由本 workflow
+              用 cargo-ndk 交叉编译并打进 APK（arm64-v8a / armeabi-v7a / x86_64）。
+            - `:vpn` 独立进程：`VpnService` 建 TUN → `runNetworkInstance` →
+              `setTunFd`，与官方 Android 客户端相同的接法。
+            - 配置校验、配置持久化、错误回显、自动连接、Magic DNS、出口节点、
+              子网路由等生产功能。
+            - 桌面/模拟器仍可回退到 Mock 后端预览 UI。
           files: |
-            ${{ steps.proj.outputs.proj }}/build/app/outputs/flutter-apk/app-release.apk
+            ${{ steps.proj.outputs.proj }}/build/app/outputs/flutter-apk/app-*-release.apk
             ${{ steps.proj.outputs.proj }}/build/app/outputs/flutter-apk/app-debug.apk

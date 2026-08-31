@@ -29,6 +29,9 @@ class NetworkStatus {
   /// Free-form detail string (e.g. the core's raw status JSON or error).
   final String? detail;
 
+  /// Last error reported by the core/backend, if any.
+  final String? lastError;
+
   const NetworkStatus({
     required this.state,
     this.instanceName = '',
@@ -39,6 +42,7 @@ class NetworkStatus {
     this.txBytesPerSec = 0,
     this.running = false,
     this.detail,
+    this.lastError,
   });
 
   static const NetworkStatus disconnected = NetworkStatus(
@@ -60,6 +64,7 @@ class NetworkStatus {
     int? txBytesPerSec,
     bool? running,
     String? detail,
+    String? lastError,
   }) {
     return NetworkStatus(
       state: state ?? this.state,
@@ -71,6 +76,7 @@ class NetworkStatus {
       txBytesPerSec: txBytesPerSec ?? this.txBytesPerSec,
       running: running ?? this.running,
       detail: detail ?? this.detail,
+      lastError: lastError ?? this.lastError,
     );
   }
 }

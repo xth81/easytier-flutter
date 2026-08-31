@@ -4,27 +4,24 @@ import 'dart:ffi' as ffi;
 
 import 'package:ffi/ffi.dart';
 
-import '../../data/models/tunnel_state.dart';
 import '../../data/models/network_config.dart';
 import '../../data/models/network_status.dart';
 import '../../data/models/peer_info.dart';
+import '../../data/models/status_json.dart';
+import '../../data/models/tunnel_state.dart';
 import 'easytier_backend.dart';
 import 'ffi_bindings.dart';
 
 /// An [EasyTierBackend] backed by the real embeddable EasyTier Rust core,
-/// loaded via the `easytier-ffi` C ABI.
-///
-/// [DynamicLibrary.open] is called with the platform-appropriate library name.
-/// On Android the `.so` is bundled in the APK's `jniLibs` (built from the
-/// `rust_builder`/cargokit setup); on desktop it is resolved relative to the
-/// executable.
+/// loaded via the `easytier-ffi` C ABI (desktop/emulator use; on Android the
+/// [AndroidServiceBackend] drives the `:vpn` process instead).
 class EasyTierFfiBackend implements EasyTierBackend {
   EasyTierFfiBackend({
     required this.libraryName,
     this.pollInterval = const Duration(seconds: 2),
   });
 
-  /// Native library name, e.g. `libeasytier_ffi.so` (Android/linux)
+  /// Native library name, e.g. `libeasytier_ffi.so` (Android/Linux)
   /// or `libeasytier_ffi.dylib` (macOS).
   final String libraryName;
   final Duration pollInterval;
@@ -93,6 +90,15 @@ class EasyTierFfiBackend implements EasyTierBackend {
               'retain_network_instance')
           .asFunction();
 
+  /// `int delete_network_instance(const char **names, size_t len)`.
+  late final int Function(ffi.Pointer<ffi.Pointer<Utf8>>, int)
+      _deleteNetworkInstance = _requireLib()
+          .lookup<ffi.NativeFunction<
+              ffi.Int32 Function(
+                  ffi.Pointer<ffi.Pointer<Utf8>>, ffi.Size)>>(
+              'delete_network_instance')
+          .asFunction();
+
   /// `void get_error_msg(char **out)`.
   late final void Function(ffi.Pointer<ffi.Pointer<Utf8>>) _getErrorMsg =
       _requireLib()
@@ -124,7 +130,9 @@ class EasyTierFfiBackend implements EasyTierBackend {
     final cfgPtr = cfg.toNativeUtf8();
     try {
       final rc = _parseConfig(cfgPtr);
-      if (rc != 0) throw BackendException('parse_config failed: ${_lastError()}');
+      if (rc != 0) {
+        throw BackendException('parse_config failed: ${_lastError()}');
+      }
     } finally {
       malloc.free(cfgPtr);
     }
@@ -194,11 +202,19 @@ class EasyTierFfiBackend implements EasyTierBackend {
     if (!_running) return;
     try {
       final infos = _collectInfos();
-      final updated = _parseInfos(infos);
-      if (updated != null) {
-        _setStatus(updated);
+      if (infos != null) {
+        // `collect_network_infos` returns, per instance, a JSON string of
+        // the instance's running info.
+        final snapshot =
+            (jsonDecode(infos) as Map).cast<String, dynamic>();
+        _peers = EasyTierStatusJson.parsePeers(
+            snapshot['routes'], snapshot['peers']);
+        _routes
+          ..clear()
+          ..addAll(EasyTierStatusJson.parseRoutes(snapshot['routes']));
+        _setStatus(EasyTierStatusJson.parseStatus(snapshot,
+            instanceName: _currentInstance));
       }
-      _peers = _parsePeers(infos);
     } catch (_) {
       // If a poll fails we keep the last known status rather than flapping.
     }
@@ -218,7 +234,7 @@ class EasyTierFfiBackend implements EasyTierBackend {
     }
   }
 
-  /// Returns the value JSON for the current instance, if any.
+  /// Returns the JSON value for the current instance, if any.
   String? _collectInfos() {
     const max = 8;
     final infos = calloc<KeyValuePair>(max);
@@ -227,8 +243,9 @@ class EasyTierFfiBackend implements EasyTierBackend {
       if (count <= 0) return null;
       for (var i = 0; i < count; i++) {
         final key = infos[i].key.toDartString();
+        final value = infos[i].value.toDartString();
         if (key == _currentInstance) {
-          return infos[i].value.toDartString();
+          return value;
         }
       }
       return null;
@@ -236,52 +253,4 @@ class EasyTierFfiBackend implements EasyTierBackend {
       calloc.free(infos);
     }
   }
-
-  NetworkStatus? _parseInfos(String? jsonStr) {
-    if (jsonStr == null) return null;
-    final Map<String, dynamic> map;
-    try {
-      map = jsonDecode(jsonStr) as Map<String, dynamic>;
-    } catch (_) {
-      return null;
-    }
-    final peerCount = _peers.length;
-    return NetworkStatus(
-      state: TunnelState.connected,
-      instanceName: _currentInstance,
-      ipv4: _stringValue(map['ipv4']),
-      peerCount: peerCount,
-      latencyMs: _intValue(map['best_latency']),
-      rxBytesPerSec: _intValue(map['rx_bytes_per_sec']) ?? 0,
-      txBytesPerSec: _intValue(map['tx_bytes_per_sec']) ?? 0,
-      running: true,
-      detail: map.toString(),
-    );
-  }
-
-  List<PeerInfo> _parsePeers(String? jsonStr) {
-    if (jsonStr == null) return const [];
-    final Map<String, dynamic> map;
-    try {
-      map = jsonDecode(jsonStr) as Map<String, dynamic>;
-    } catch (_) {
-      return const [];
-    }
-    final peers = map['peers'];
-    if (peers is! List) return const [];
-    return peers
-        .whereType<Map>()
-        .map((p) => PeerInfo(
-              hostname: _stringValue(p['hostname']) ?? 'peer',
-              ipv4: _stringValue(p['ipv4']) ?? '0.0.0.0',
-              latencyMs: _intValue(p['latency']) ?? 0,
-              direct: _boolValue(p['direct']),
-              natType: _stringValue(p['nat_type']) ?? '',
-            ))
-        .toList();
-  }
-
-  String? _stringValue(Object? v) => v is String ? v : null;
-  int? _intValue(Object? v) => v is num ? v.toInt() : null;
-  bool _boolValue(Object? v) => v is bool && v;
 }

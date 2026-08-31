@@ -18,20 +18,20 @@ class StatusPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final bg = filled ? color.withValues(alpha: 0.16) : scheme.surfaceContainerLow;
+    final bg = filled ? color.withValues(alpha: 0.16) : Colors.transparent;
     final fg = filled ? color : scheme.onSurfaceVariant;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
+        border: Border.all(color: color.withValues(alpha: filled ? 0.3 : 0.5)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: fg),
-          const SizedBox(width: 6),
+          Icon(icon, size: 12, color: fg),
+          const SizedBox(width: 5),
           Text(
             label,
             style: TextStyle(

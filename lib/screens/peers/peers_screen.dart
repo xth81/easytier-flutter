@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/state/easytier_controller.dart';
 import '../../data/models/peer_info.dart';
-import '../../widgets/astral_card.dart';
+import '../../widgets/section_card.dart';
 import '../../widgets/status_pill.dart';
 
 /// Dedicated peer & route inspector. Shows every reachable node and the routes
@@ -43,73 +43,84 @@ class _PeersScreenState extends State<PeersScreen> {
   @override
   Widget build(BuildContext context) {
     final controller = widget.controller;
-    if (controller.peers.isEmpty && controller.routes.isEmpty) {
-      return _empty(controller);
+    final scheme = Theme.of(context).colorScheme;
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('节点与路由')),
+      body: RefreshIndicator(
+        onRefresh: controller.refresh,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+          children: [
+            SectionCard(
+              title: '可达节点 (${controller.peers.length})',
+              icon: Icons.hub_outlined,
+              trailing: StatusPill(
+                label: controller.isConnected ? '在线' : '离线',
+                color: controller.isConnected
+                    ? const Color(0xFF00C853)
+                    : scheme.outline,
+                icon: controller.isConnected
+                    ? Icons.circle
+                    : Icons.pause_circle_outline,
+              ),
+              child: _PeersContent(controller: controller),
+            ),
+            const SizedBox(height: 16),
+            SectionCard(
+              title: '导出路由 (${controller.routes.length})',
+              icon: Icons.alt_route,
+              child: _RoutesContent(controller: controller),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PeersContent extends StatelessWidget {
+  final EasyTierController controller;
+
+  const _PeersContent({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final peers = controller.peers;
+    if (peers.isEmpty) {
+      return _empty(context, Icons.hub_outlined, '暂无节点',
+          '启动网络后，这里会显示加入的节点');
     }
-    return RefreshIndicator(
-      onRefresh: controller.refresh,
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-        children: [
-          AstralCard(
-            maxWidth: 560,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SectionHeader(
-                  title: '可达节点 (${controller.peers.length})',
-                  icon: Icons.hub_outlined,
-                ),
-                const SizedBox(height: 8),
-                if (controller.peers.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Center(
-                      child: Text('暂无节点',
-                          style: TextStyle(
-                              color: Theme.of(context).colorScheme.onSurfaceVariant)),
-                    ),
-                  )
-                else
-                  ...controller.peers
-                      .map((p) => _peerTile(context, p))
-                      .expand((t) => [t, const Divider(height: 1)]),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          AstralCard(
-            maxWidth: 560,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SectionHeader(
-                  title: '导出路由 (${controller.routes.length})',
-                  icon: Icons.alt_route,
-                ),
-                const SizedBox(height: 8),
-                if (controller.routes.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Center(
-                      child: Text('暂无路由',
-                          style: TextStyle(
-                              color: Theme.of(context).colorScheme.onSurfaceVariant)),
-                    ),
-                  )
-                else
-                  ...controller.routes
-                      .map((r) => ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            leading: const Icon(Icons.route),
-                            title: Text(r.network),
-                            subtitle: Text('下一跳 ${r.nextHop}'),
-                            trailing: Text('${r.cost}'),
-                          )),
-              ],
-            ),
-          ),
+    return Column(
+      children: [
+        for (final (index, peer) in peers.indexed) ...[
+          if (index > 0) const Divider(height: 1),
+          _peerTile(context, peer),
         ],
+      ],
+    );
+  }
+
+  Widget _empty(
+      BuildContext context, IconData icon, String title, String hint) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 20),
+      child: Center(
+        child: Column(
+          children: [
+            Icon(icon, size: 36, color: scheme.outline),
+            const SizedBox(height: 8),
+            Text(title,
+                style: const TextStyle(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 4),
+            Text(hint,
+                style: TextStyle(
+                    color: scheme.onSurfaceVariant, fontSize: 12.5)),
+          ],
+        ),
       ),
     );
   }
@@ -123,34 +134,75 @@ class _PeersScreenState extends State<PeersScreen> {
         backgroundColor: scheme.primaryContainer,
         child: Icon(Icons.computer, color: scheme.onPrimaryContainer),
       ),
-      title: Text(peer.hostname, style: const TextStyle(fontWeight: FontWeight.w600)),
-      subtitle: Text('${peer.ipv4}  ·  ${peer.natType}'),
+      title: Text(peer.hostname,
+          style: const TextStyle(fontWeight: FontWeight.w600)),
+      subtitle: Text(
+        '${peer.ipv4} · ${peer.natType.isEmpty ? '未知 NAT' : peer.natType}',
+      ),
       trailing: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           Text('${peer.latencyMs}ms',
               style: const TextStyle(fontWeight: FontWeight.w700)),
-          StatusPill(label: peer.direct ? '直连' : '中转', color: color, filled: false),
+          StatusPill(
+            label: peer.direct ? '直连' : '中转',
+            color: color,
+            filled: false,
+          ),
         ],
       ),
     );
   }
+}
 
-  Widget _empty(EasyTierController controller) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.hub_outlined,
-              size: 64, color: Theme.of(context).colorScheme.outline),
-          const SizedBox(height: 16),
-          const Text('暂无节点信息'),
-          const SizedBox(height: 8),
-          Text('启动网络后，这里会显示加入的节点',
-              style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+class _RoutesContent extends StatelessWidget {
+  final EasyTierController controller;
+
+  const _RoutesContent({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final routes = controller.routes;
+    if (routes.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        child: Center(
+          child: Column(
+            children: [
+              Icon(Icons.alt_route, size: 36, color: scheme.outline),
+              const SizedBox(height: 8),
+              Text('暂无路由',
+                  style: TextStyle(
+                      color: scheme.onSurfaceVariant, fontSize: 12.5)),
+            ],
+          ),
+        ),
+      );
+    }
+    return Column(
+      children: [
+        for (final (index, route) in routes.indexed) ...[
+          if (index > 0) const Divider(height: 1),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(Icons.route, color: scheme.primary),
+            title: Text(route.network,
+                style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontFamily: 'monospace',
+                    fontSize: 14)),
+            subtitle: Text(
+              '下一跳 ${route.nextHop.isEmpty ? '未知' : route.nextHop}'
+              '${route.latencyMs != null ? ' · ${route.latencyMs}ms' : ''}',
+            ),
+            trailing: Text('cost ${route.cost}',
+                style: TextStyle(
+                    color: scheme.onSurfaceVariant, fontSize: 12.5)),
+          ),
         ],
-      ),
+      ],
     );
   }
 }

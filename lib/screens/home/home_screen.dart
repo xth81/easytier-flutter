@@ -3,16 +3,18 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../core/state/easytier_controller.dart';
-import '../../data/models/tunnel_state.dart';
 import '../../data/models/peer_info.dart';
+import '../../data/models/tunnel_state.dart';
 import '../../widgets/astral_card.dart';
 import '../../widgets/connection_hero_card.dart';
+import '../../widgets/section_card.dart';
 import '../../widgets/status_pill.dart';
 
-/// The primary dashboard screen: connection hero, node info, and a snapshot of
-/// the mesh peers/routes.
+/// The primary dashboard screen: connection hero, quick config summary,
+/// and a compact mesh snapshot.
 class HomeScreen extends StatefulWidget {
   final EasyTierController controller;
+
   /// Navigate to the networks (config) tab.
   final VoidCallback onGoConfig;
 
@@ -55,73 +57,102 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final controller = widget.controller;
-
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-      children: [
-        ConnectionHeroCard(
-          controller: controller,
-          onToggle: () => controller.toggle(),
-          onEditConfig: widget.onGoConfig,
-        ),
-        const SizedBox(height: 16),
-        _NodeInfoCard(controller: controller),
-        const SizedBox(height: 16),
-        _PeersCard(controller: controller),
-      ],
-    );
-  }
-
   void _rebuild() {
     if (mounted) setState(() {});
   }
-}
-
-class _NodeInfoCard extends StatelessWidget {
-  final EasyTierController controller;
-  const _NodeInfoCard({required this.controller});
 
   @override
   Widget build(BuildContext context) {
+    final controller = widget.controller;
     final status = controller.status;
     final scheme = Theme.of(context).colorScheme;
-    return AstralCard(
-      maxWidth: 560,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SectionHeader(
-            title: '本机节点',
-            icon: Icons.dns_outlined,
-            trailing: StatusPill(
-              label: status.running ? '运行中' : '已停止',
-              color: status.running ? const Color(0xFF00C853) : scheme.outline,
-            ),
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('EasyTier'),
+        actions: [
+          IconButton(
+            tooltip: '配置网络',
+            onPressed: widget.onGoConfig,
+            icon: const Icon(Icons.tune),
           ),
-          const SizedBox(height: 16),
-          _kv(context, '主机名', controller.activeConfig?.hostname ?? '--', scheme),
-          _kv(context, '虚拟 IPv4', status.ipv4 ?? '未分配', scheme),
-          _kv(context, '网络名称', controller.activeConfig?.networkName ?? '--', scheme),
-          _kv(context, '后端', controller.backend.backendName, scheme),
         ],
+      ),
+      body: RefreshIndicator(
+        onRefresh: controller.refresh,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+          children: [
+            ConnectionHeroCard(
+              controller: controller,
+              onToggle: () => controller.toggle(),
+              onEditConfig: widget.onGoConfig,
+            ),
+            const SizedBox(height: 16),
+            // Network identity + local node summary in one compact card.
+            SectionCard(
+              title: '当前网络',
+              icon: Icons.dns_outlined,
+              trailing: StatusPill(
+                label: status.isRunning ? '运行中' : '已停止',
+                color: status.isRunning ? const Color(0xFF00C853) : scheme.outline,
+                icon: status.isRunning ? Icons.circle : Icons.pause_circle_outline,
+              ),
+              child: Column(
+                children: [
+                  _kv('网络名称', controller.activeConfig?.networkName ?? '--', Icons.group_outlined),
+                  _kv('虚拟 IPv4', status.ipv4 ?? '未分配', Icons.lan_outlined),
+                  _kv('后端', controller.backend.backendName, Icons.memory),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            // Quick mesh stats strip.
+            _StatsStrip(controller: controller),
+            const SizedBox(height: 16),
+            // Compact peers preview; full table lives in the peers tab.
+            SectionCard(
+              title: '节点 (${controller.peers.length})',
+              icon: Icons.hub_outlined,
+              trailing: TextButton(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => Scaffold(
+                      appBar: AppBar(title: const Text('节点')),
+                      body: _PeerList(controller: controller),
+                    ),
+                  ),
+                ),
+                child: const Text('全部'),
+              ),
+              child: _PeerPreview(controller: controller),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _kv(BuildContext context, String label, String value, ColorScheme scheme) {
+  Widget _kv(String label, String value, IconData icon) {
+    final scheme = Theme.of(context).colorScheme;
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.symmetric(vertical: 7),
       child: Row(
         children: [
+          Icon(icon, size: 17, color: scheme.onSurfaceVariant),
+          const SizedBox(width: 10),
           SizedBox(
-            width: 110,
-            child: Text(label, style: TextStyle(color: scheme.onSurfaceVariant)),
+            width: 84,
+            child: Text(label,
+                style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13.5)),
           ),
           Expanded(
-            child: Text(value, style: const TextStyle(fontWeight: FontWeight.w600)),
+            child: Text(
+              value,
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
         ],
       ),
@@ -129,73 +160,158 @@ class _NodeInfoCard extends StatelessWidget {
   }
 }
 
-class _PeersCard extends StatelessWidget {
+class _StatsStrip extends StatelessWidget {
   final EasyTierController controller;
-  const _PeersCard({required this.controller});
+
+  const _StatsStrip({required this.controller});
 
   @override
   Widget build(BuildContext context) {
-    final peers = controller.peers;
     final scheme = Theme.of(context).colorScheme;
+    final status = controller.status;
     return AstralCard(
-      maxWidth: 560,
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Row(
+        children: [
+          _stat('延迟', status.latencyMs != null ? '${status.latencyMs}ms' : '--'),
+          _divider(scheme),
+          _stat('下行', _fmt(status.rxBytesPerSec)),
+          _divider(scheme),
+          _stat('上行', _fmt(status.txBytesPerSec)),
+        ],
+      ),
+    );
+  }
+
+  Widget _divider(ColorScheme scheme) => Container(
+        width: 1,
+        height: 32,
+        color: scheme.outlineVariant.withValues(alpha: 0.5),
+      );
+
+  Widget _stat(String label, String value) {
+    return Expanded(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SectionHeader(title: '节点', icon: Icons.hub_outlined),
-          const SizedBox(height: 12),
-          if (peers.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 24),
-              child: Center(
-                child: Text(
-                  controller.status.state == TunnelState.connected
-                      ? '暂无其它节点加入'
-                      : '连接后显示可达节点',
-                  style: TextStyle(color: scheme.onSurfaceVariant),
-                ),
-              ),
-            )
-          else
-            ...peers.map((p) => divider(context, _peerTile(context, p, scheme))),
+          Text(value,
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 2),
+          Text(label,
+              style: TextStyle(
+                  fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
         ],
       ),
     );
   }
 
-  Widget _peerTile(BuildContext context, PeerInfo peer, ColorScheme scheme) {
-    final color = peer.direct ? const Color(0xFF00C853) : scheme.tertiary;
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: CircleAvatar(
-        backgroundColor: scheme.primaryContainer,
-        child: Icon(Icons.computer, color: scheme.onPrimaryContainer),
-      ),
-      title: Text(peer.hostname, style: const TextStyle(fontWeight: FontWeight.w600)),
-      subtitle: Text('${peer.ipv4}  ·  ${peer.natType}'),
-      trailing: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Text('${peer.latencyMs}ms',
-              style: const TextStyle(fontWeight: FontWeight.w700)),
-          StatusPill(
-            label: peer.direct ? '直连' : '中转',
-            color: color,
-            filled: false,
-          ),
-        ],
-      ),
-    );
+  String _fmt(int bps) {
+    if (bps >= 1024 * 1024) return '${(bps / (1024 * 1024)).toStringAsFixed(1)} MB/s';
+    if (bps >= 1024) return '${(bps / 1024).toStringAsFixed(0)} KB/s';
+    return '$bps B/s';
   }
+}
 
-  Widget divider(BuildContext context, Widget tile) {
+class _PeerPreview extends StatelessWidget {
+  final EasyTierController controller;
+
+  const _PeerPreview({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final peers = controller.peers.take(3).toList();
+    if (peers.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        child: Center(
+          child: Column(
+            children: [
+              Icon(Icons.hub_outlined, size: 36, color: scheme.outline),
+              const SizedBox(height: 8),
+              Text(
+                controller.status.state == TunnelState.connected
+                    ? '暂无其它节点加入'
+                    : '连接后显示可达节点',
+                style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Column(
       children: [
-        tile,
-        Divider(height: 1, color: scheme.outlineVariant.withValues(alpha: 0.4)),
+        for (final (index, peer) in peers.indexed) ...[
+          if (index > 0) const Divider(height: 1),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+            leading: CircleAvatar(
+              radius: 16,
+              backgroundColor: scheme.primaryContainer,
+              child: Icon(Icons.computer, size: 16, color: scheme.onPrimaryContainer),
+            ),
+            title: Text(peer.hostname,
+                style: const TextStyle(
+                    fontWeight: FontWeight.w600, fontSize: 14)),
+            subtitle: Text('${peer.ipv4} · ${peer.natType}',
+                style: const TextStyle(fontSize: 12)),
+            trailing: Text('${peer.latencyMs}ms',
+                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+          ),
+        ],
       ],
+    );
+  }
+}
+
+class _PeerList extends StatelessWidget {
+  final EasyTierController controller;
+
+  const _PeerList({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final peers = controller.peers;
+    if (peers.isEmpty) {
+      return Center(
+        child: Text('暂无节点',
+            style: TextStyle(color: scheme.onSurfaceVariant)),
+      );
+    }
+    return ListView.separated(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      itemCount: peers.length,
+      separatorBuilder: (_, __) => const Divider(height: 1, indent: 72),
+      itemBuilder: (context, index) {
+        final peer = peers[index];
+        return ListTile(
+          leading: CircleAvatar(
+            backgroundColor: scheme.primaryContainer,
+            child: Icon(Icons.computer, color: scheme.onPrimaryContainer),
+          ),
+          title: Text(peer.hostname,
+              style: const TextStyle(fontWeight: FontWeight.w600)),
+          subtitle: Text('${peer.ipv4} · ${peer.natType}'),
+          trailing: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text('${peer.latencyMs}ms',
+                  style: const TextStyle(fontWeight: FontWeight.w700)),
+              StatusPill(
+                label: peer.direct ? '直连' : '中转',
+                color: peer.direct
+                    ? const Color(0xFF00C853)
+                    : scheme.tertiary,
+                filled: false,
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

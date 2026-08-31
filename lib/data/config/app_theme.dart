@@ -25,18 +25,23 @@ class AppTheme {
       brightness: brightness,
     );
 
+    final rounded16 = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(16),
+    );
+
     return ThemeData(
       useMaterial3: useMaterial3,
       colorScheme: scheme,
       brightness: brightness,
-      scaffoldBackgroundColor: scheme.surface,
+      scaffoldBackgroundColor: scheme.surfaceContainerLowest,
       visualDensity: VisualDensity.adaptivePlatformDensity,
       fontFamilyFallback: const ['MiSans', 'Roboto', 'sans-serif'],
       appBarTheme: AppBarTheme(
-        backgroundColor: scheme.surface,
+        backgroundColor: scheme.surfaceContainerLowest,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         centerTitle: false,
+        scrolledUnderElevation: 0,
         titleTextStyle: TextStyle(
           color: scheme.onSurface,
           fontSize: 20,
@@ -52,9 +57,10 @@ class AppTheme {
         clipBehavior: Clip.antiAlias,
       ),
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: scheme.surface,
+        backgroundColor: scheme.surfaceContainerLow,
         surfaceTintColor: Colors.transparent,
         indicatorColor: scheme.primaryContainer,
+        height: 72,
         labelTextStyle: WidgetStatePropertyAll(
           TextStyle(
             fontSize: 12,
@@ -65,25 +71,30 @@ class AppTheme {
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          shape: rounded16,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          shape: rounded16,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide.none,
         ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.5)),
+        ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide(color: scheme.primary, width: 1.5),
         ),
         contentPadding:
@@ -92,6 +103,26 @@ class AppTheme {
       chipTheme: ChipThemeData(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         backgroundColor: scheme.surfaceContainerHighest,
+      ),
+      dividerTheme: DividerThemeData(
+        color: scheme.outlineVariant.withValues(alpha: 0.4),
+        space: 1,
+      ),
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? scheme.primary
+              : scheme.outline,
+        ),
+        trackColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? scheme.primaryContainer
+              : scheme.surfaceContainerHighest,
+        ),
+      ),
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
   }

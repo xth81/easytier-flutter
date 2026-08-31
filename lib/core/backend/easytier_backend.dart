@@ -5,7 +5,8 @@ import '../../data/models/peer_info.dart';
 /// Abstract interface that any EasyTier engine can implement to back the UI.
 ///
 /// The app is written against this interface so it can run against:
-///  * the real embeddable Rust core (via the `easytier-ffi` C ABI) on a device;
+///  * the real embeddable Rust core (the `:vpn` Android service, or the
+///    `easytier-ffi` C ABI on desktop);
 ///  * a simulated in-memory backend for the emulator, tests and previews.
 ///
 /// Implementations are expected to be the single source of truth for the
@@ -24,14 +25,14 @@ abstract class EasyTierBackend {
   /// Currently known exported routes.
   List<RouteInfo> get routes;
 
-  /// Human-readable backend name, e.g. `FfiBackend`, `MockBackend`.
+  /// Human-readable backend name, e.g. `Service (Android)`, `FFI`, `Mock`.
   String get backendName;
 
-  /// Initialize the backend (load native library, start runtime, etc.).
+  /// Initialize the backend (load native library, bind service, etc.).
   Future<void> initialize();
 
   /// Start a network from [config]. Idempotent: starting an already-running
-  /// instance is a no-op, while starting a different config replaces it.
+  /// instance with the same config is a no-op; a different config replaces it.
   Future<void> start(NetworkConfig config);
 
   /// Stop the running network, if any.

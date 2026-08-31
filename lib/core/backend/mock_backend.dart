@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'dart:math';
 
-import '../../data/models/tunnel_state.dart';
 import '../../data/models/network_config.dart';
 import '../../data/models/network_status.dart';
 import '../../data/models/peer_info.dart';
+import '../../data/models/tunnel_state.dart';
 import 'easytier_backend.dart';
 
 /// A fully-functional, in-memory [EasyTierBackend] used for the emulator,
@@ -66,6 +66,7 @@ class MockEasyTierBackend implements EasyTierBackend {
 
     _config = config;
     _peers = [];
+    _routes.clear();
     _running = true;
     _startedAt = DateTime.now().millisecondsSinceEpoch;
     _rx = 0;
@@ -89,7 +90,7 @@ class MockEasyTierBackend implements EasyTierBackend {
   void _meshUp() {
     // Bring up a handful of virtual peers with jittered latency.
     final baseLatency = 8 + _random.nextInt(40);
-    _peers = List.generate(
+    final peers = List.generate(
       3 + _random.nextInt(3),
       (i) => PeerInfo(
         hostname: 'node-${i + 1}',
@@ -99,10 +100,21 @@ class MockEasyTierBackend implements EasyTierBackend {
         natType: i.isEven ? 'FullCone' : 'Symmetric',
       ),
     );
+    _peers = peers;
+    _routes
+      ..clear()
+      ..add(RouteInfo(
+        network: '192.168.${_random.nextInt(200)}.0/24',
+        nextHop: peers.first.hostname,
+        cost: 1,
+        latencyMs: peers.first.latencyMs,
+      ));
     _setStatus(NetworkStatus(
       state: TunnelState.connected,
       instanceName: _config?.instanceName ?? '',
-      ipv4: _config?.ipv4 ?? '10.0.0.1',
+      ipv4: _config?.dhcp == true
+          ? '10.144.144.${100 + _random.nextInt(50)}'
+          : (_config?.ipv4 ?? '10.0.0.1'),
       peerCount: _peers.length,
       latencyMs: _peers.first.latencyMs,
       running: true,
@@ -112,13 +124,13 @@ class MockEasyTierBackend implements EasyTierBackend {
   void _onTick(Timer _) {
     if (!_running) return;
 
-    // Simulate fluctuating traffic.
+    // Simulate fluctuating traffic (delta bytes/sec).
     _rx = _random.nextInt(600 * 1024);
     _tx = _random.nextInt(300 * 1024);
 
     // Small chance a peer disconnects / reconnects to exercise the UI.
     if (_peers.isNotEmpty && _random.nextInt(40) == 0) {
-      _peers.removeAt(_random.nextInt(_peers.length));
+      _peers = List.of(_peers)..removeAt(_random.nextInt(_peers.length));
     } else if (_peers.length < 6 && _random.nextInt(60) == 0) {
       _peers = [
         ..._peers,
@@ -133,6 +145,7 @@ class MockEasyTierBackend implements EasyTierBackend {
     }
 
     _setStatus(_status.copyWith(
+      state: _peers.isEmpty ? TunnelState.waiting : TunnelState.connected,
       peerCount: _peers.length,
       latencyMs: _peers.isEmpty ? null : _peers.first.latencyMs,
       rxBytesPerSec: _rx,

@@ -21,5 +21,5 @@ enum TunnelState {
 
   bool get isActive => this == connected || this == connecting;
 
-  bool get isRunning => this != disconnected && this != error;
+  bool get isRunning => this == connected || this == connecting || this == waiting;
 }

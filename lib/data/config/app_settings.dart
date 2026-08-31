@@ -1,9 +1,13 @@
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../models/network_config.dart';
 import 'app_theme.dart';
 
-/// Lightweight persisted application settings (theme, backend toggle, etc.).
+/// Lightweight persisted application settings (theme, backend toggle, saved
+/// network config, auto-connect, ...).
 ///
 /// Uses `shared_preferences` so the app remembers the user's choices across
 /// launches. Values are kept in memory and flushed on change.
@@ -16,6 +20,8 @@ class AppSettings {
   static const String _kSeedColor = 'seedColor';
   static const String _kDeveloperMockBackend = 'developerMockBackend';
   static const String _kAutoStart = 'autoStart';
+  static const String _kSavedConfig = 'savedConfig';
+  static const String _kEnableMagicDns = 'enableMagicDns';
 
   SharedPreferences? _prefs;
 
@@ -23,12 +29,16 @@ class AppSettings {
   Color _seedColor = AppTheme.defaultSeed;
   bool _devMockBackend = false;
   bool _autoStart = false;
+  bool _enableMagicDns = false;
+  NetworkConfig? _savedConfig;
 
   ThemeMode get themeMode => _themeMode;
   Color get seedColor => _seedColor;
   bool get darkMode => _themeMode == ThemeMode.dark;
   bool get developerMockBackend => _devMockBackend;
   bool get autoStart => _autoStart;
+  bool get enableMagicDns => _enableMagicDns;
+  NetworkConfig? get savedConfig => _savedConfig;
 
   /// Load persisted settings. Call once during app startup.
   Future<void> load() async {
@@ -38,6 +48,17 @@ class AppSettings {
         AppTheme.defaultSeed;
     _devMockBackend = _prefs?.getBool(_kDeveloperMockBackend) ?? false;
     _autoStart = _prefs?.getBool(_kAutoStart) ?? false;
+    _enableMagicDns = _prefs?.getBool(_kEnableMagicDns) ?? false;
+
+    final saved = _prefs?.getString(_kSavedConfig);
+    if (saved != null) {
+      try {
+        _savedConfig =
+            NetworkConfig.fromJson(jsonDecode(saved) as Map<String, dynamic>);
+      } catch (_) {
+        _savedConfig = null;
+      }
+    }
   }
 
   void setThemeMode(ThemeMode mode) {
@@ -58,6 +79,31 @@ class AppSettings {
   void setAutoStart(bool value) {
     _autoStart = value;
     _prefs?.setBool(_kAutoStart, value);
+  }
+
+  void setEnableMagicDns(bool value) {
+    _enableMagicDns = value;
+    _prefs?.setBool(_kEnableMagicDns, value);
+  }
+
+  void setSavedConfig(NetworkConfig config) {
+    _savedConfig = config;
+    _prefs?.setString(_kSavedConfig, jsonEncode(config.toJson()));
+  }
+
+  /// The config to prefill the forms / auto-connect with.
+  NetworkConfig get effectiveConfig {
+    final saved = _savedConfig;
+    if (saved != null) {
+      if (_enableMagicDns && !saved.extraFlags.containsKey('accept_dns')) {
+        return saved.copyWith(extraFlags: {
+          ...saved.extraFlags,
+          'accept_dns': true,
+        });
+      }
+      return saved;
+    }
+    return NetworkConfig.defaults();
   }
 
   ThemeMode? _fromName(String? name) {

@@ -1,119 +1,110 @@
 # EasyTier Flutter 客户端
 
-一个 **Material 3（Material You）** 风格的 **EasyTier 跨平台客户端**，采用 Flutter 编写，优先完成 **Android** 端。设计与架构参考了官方的 **AstralET**（`EasyTier/astral`）——一个基于 Flutter + Rust（easytier）的游戏联机工具。
+一个 **Material 3（Material You）** 风格的 **EasyTier 安卓客户端**，Flutter UI +
+官方 EasyTier Rust 核心（vendored），设计与布局参考官方 **AstralET** 客户端。
 
-## 设计语言（astral / Material 3）
+## 特性
 
-- **种子色主题**：整套配色由单个种子色动态派生，浅色 / 深色 / 跟随系统三种模式，可在设置中切换主题色。
-- **卡片式仪表盘**：圆角大卡片（`AstralCard`）、柔和表面、状态胶囊、动画状态环。
-- **布局**：底部 `NavigationBar` 四个标签 —— 首页 / 网络 / 节点 / 设置。
+- **真实核心**：`rust/` 内是官方 EasyTier 核心的裁剪副本（`easytier-core` /
+  `easytier-proto` / `easytier` / `easytier-ffi` / `easytier-android-jni`），
+  GitHub Actions 用 `cargo-ndk` 交叉编译并打包进 APK（arm64-v8a /
+  armeabi-v7a / x86_64），不需要手工下载任何 SDK。
+- **正确的 Android 接法**：`EasyTierVpnService` 运行在独立 `:vpn` 进程，
+  建 TUN → `runNetworkInstance(toml)` → `setTunFd`，与官方 Android 客户端相同；
+  UI 进程通过 Binder（AIDL）查询状态。
+- **生产级功能**：VPN 权限引导、前台常驻通知（含断开按钮）、配置校验、
+  配置持久化、启动自动连接、错误信息回显、Magic DNS、出口节点、子网路由、
+  节点/路由实时展示、浅色/深色/跟随系统主题与主题色。
+- **双后端**：Android 上走 `:vpn` 服务进程；桌面走 `easytier-ffi` C ABI；
+  无核心时回退到内存 Mock 后端（开发预览 / 测试）。
+
+## 界面布局（Material 3 / astral 风格）
+
+底部 `NavigationBar` 四个标签：
+
+1. **首页**：连接 Hero 卡（状态环 + 连接按钮 + 上下行/延迟）、当前网络摘要、
+   流量统计条、节点快照；
+2. **网络**：分组表单（网络身份 / 地址模式 / 接入点 / 高级选项），
+   保存并连接 / 仅保存 / 断开；
+3. **节点**：可达节点列表（直连/中转、NAT 类型、延迟）与导出路由表；
+4. **设置**：外观（主题模式/主题色）、网络行为（自动连接）、网络引擎、
+   关于。
 
 ## 架构
-
-本项目把「UI」与「引擎」解耦，通过一个可插拔的 `EasyTierBackend` 接口连接真实核心：
 
 ```
 easytier-flutter/
 ├── lib/
-│   ├── main.dart                 # 入口：加载设置、构建控制器、启动 App
-│   ├── app.dart                  # 根组件：主题 + 四个 tab 的导航
+│   ├── main.dart                    # 入口：加载设置、构建后端、自动连接
+│   ├── app.dart                     # 根组件：主题 + 四 tab 导航
 │   ├── core/
 │   │   ├── backend/
-│   │   │   ├── easytier_backend.dart  # 后端抽象接口
-│   │   │   ├── backend_factory.dart   # 自动选择 mock/FFI
-│   │   │   ├── ffi_bindings.dart      # easytier-ffi C ABI 的 Dart FFI 绑定
-│   │   │   ├── ffi_backend.dart       # 真实 Rust 核心后端
-│   │   │   └── mock_backend.dart      # 内存模拟后端（预览/测试）
+│   │   │   ├── easytier_backend.dart    # 后端抽象接口
+│   │   │   ├── backend_factory.dart     # Android→service / 桌面→FFI / 回退 mock
+│   │   │   ├── service_backend.dart     # Android：MethodChannel ↔ :vpn 进程
+│   │   │   ├── ffi_backend.dart         # 桌面：easytier-ffi C ABI
+│   │   │   ├── ffi_bindings.dart
+│   │   │   └── mock_backend.dart        # 内存模拟引擎
 │   │   └── state/
-│   │       └── easytier_controller.dart  # 状态中枢（ChangeNotifier）
+│   │       └── easytier_controller.dart # ChangeNotifier 状态中枢
 │   ├── data/
-│   │   ├── config/  app_settings.dart, app_theme.dart
-│   │   ├── models/  network_config.dart, network_status.dart,
-│   │   │            peer_info.dart, connection_state.dart
-│   ├── screens/     home / networks / peers / settings
-│   └── widgets/     astral_card.dart, status_pill.dart,
-│                    connection_hero_card.dart
-├── android/                       # Android 目标
+│   │   ├── config/    app_settings.dart, app_theme.dart
+│   │   └── models/    network_config.dart(+TOML), network_status.dart,
+│   │                  peer_info.dart, tunnel_state.dart, status_json.dart,
+│   │                  config_validators.dart
+│   ├── screens/       home / networks / peers / settings
+│   └── widgets/       astral_card, connection_hero_card, status_pill,
+│                      section_card, section_header
+├── android/
 │   └── app/src/main/
+│       ├── aidl/com/easytier/client/IEasyTierVpnService.aidl
 │       ├── kotlin/com/easytier/client/
-│       │   ├── MainActivity.kt
-│       │   ├── EasyTierVpnService.kt   # VpnService：TUN + setTunFd
-│       │   └── EasyTierJni.kt          # 原生 JNI 桥（匹配官方接口）
-│       └── AndroidManifest.xml
-└── rust_builder/                  # 集成真实 Rust 核心的插件占位
+│       │   ├── MainActivity.kt          # MethodChannel + VPN 权限流程 + Binder 查询
+│       │   ├── EasyTierVpnService.kt    # :vpn 进程：TUN + 核心生命周期
+│       │   ├── EasyTierJni.kt           # JNI 桥（动态解析 C ABI）
+│       │   └── EasyTierStateStore.kt    # 跨进程状态缓存
+│       └── jniLibs/<abi>/               # 构建产物：libeasytier_*.so
+└── rust/                              # vendored 官方核心 + build.sh
 ```
 
-## 引擎（后端）如何工作
+## 构建与发布
 
-1. **FFI 后端（真实核心）**：通过 `easytier-ffi` 的 C ABI 加载 `libeasytier_ffi`，调用
-   `parse_config` / `run_network_instance` / `collect_network_infos` /
-   `set_tun_fd` 等函数。在 Android 上核心 `.so` 会打进 APK。
-2. **模拟后端（Mock）**：一个完整的、有状态的内存引擎，复现「连接 → 组网 → 流量」的完整链路，
-   用于在没有真机/真核心时预览界面、跑测试。可在设置中强制开启。
+**无需本地 SDK**：推到 GitHub 后 `.github/workflows/build.yml` 会
 
-`EasyTierBackendFactory.create()` 会根据平台和开发者开关自动选择后端。
+1. 安装 Flutter + Android SDK/NDK + Rust 1.95 + cargo-ndk；
+2. 运行 `rust/build.sh` 交叉编译三个 ABI 并放入 `jniLibs`；
+3. `flutter analyze` → `flutter test` → `flutter build apk`（debug + release）；
+4. 上传 artifact，并在 main/master 分支自动发布到 `latest` GitHub Release。
 
-## 构建与运行
-
-### 环境要求
-- Flutter SDK（稳定版）
-- Android SDK，`ANDROID_HOME` 指向 SDK 目录
-- Java 17+（Gradle 需要）
-
-### 步骤
+也可以本地复现（需 Flutter、Android SDK/NDK、Rust 1.95、cargo-ndk）：
 
 ```bash
-# 1. 进入项目
 cd easytier-flutter
-
-# 2. 安装依赖
+(cd rust && ./build.sh arm64-v8a armeabi-v7a x86_64)
 flutter pub get
-
-# 3. 运行到已连接的设备/模拟器
-flutter run
-
-# 4. 构建 Android APK
-flutter build apk --debug
-flutter build apk --release
+flutter analyze && flutter test
+flutter build apk --release --split-per-abi
 ```
 
-### 检查 / 测试
+产物在 `build/app/outputs/flutter-apk/`。
 
-```bash
-flutter analyze
-flutter test
-```
+## 配置说明
 
-### 用 GitHub Actions 自动构建
-
-仓库内已提供 `.github/workflows/build.yml`，推到 GitHub 后会在 `ubuntu-latest`
-上自动执行 `flutter pub get` → `flutter analyze` → `flutter test` →
-`flutter build apk --debug/--release`，并上传 APK 作为 artifact。
-
-要本地复现 CI，可在仓库根目录（或 `easytier-flutter/` 子目录）触发 workflow_dispatch 即可。
-
-## 连接到真实 EasyTier 核心
-
-默认运行使用 **Mock 后端**，在有真实核心的 Android 设备上会自动切换到 FFI 后端。
-要接入真实核心：
-
-1. 使用官方
-   [`easytier-android-jni/build.sh`](https://github.com/EasyTier/EasyTier)
-   交叉编译出 `libeasytier_ffi.so`（以及 `libeasytier_android_jni.so`）。
-2. 拷贝到 `android/app/src/main/jniLibs/<abi>/`（如 `arm64-v8a`）。
-3. 重新构建 APK。
-
-详见 `rust_builder/README.md`。
+- **网络名称 / 网络密钥**：所有节点必须一致；密钥是网络凭证。
+- **DHCP（推荐）**：由网络自动分配虚拟 IPv4；静态模式手动填写 `IP/前缀`。
+- **种子节点**：没有公网 IP 时填写公共/自建中继，如 `tcp://public.easytier.cn:11010`。
+- **允许作为出口节点**：其他节点可经本机代理外网流量（可限制仅特定节点 IP）。
+- **Magic DNS**：可用节点主机名互相访问（`100.100.100.101`）。
+- **无 TUN 模式**：仅作子网路由节点，不占用本机 VPN。
 
 ## 说明与范围
 
-- **当前已交付**：完整、可运行的 Material 3 客户端 UI、状态机、网络配置表单、
-  节点/路由展示、设置（主题/后端/关于），以及 Android 端的 `VpnService` 与 JNI 桥骨架，
-  和 FFI 真实核心的 Dart 绑定。
-- **需要真机验证**：`VpnService` 的 TUN 建立与 `setTunFd`，以及真实核心联网。
-- **跨平台**：目录结构已为 iOS/Windows/Linux/macOS 预留（`rust_builder` 已声明这些平台），
-  后续可逐步补齐各平台目标。
+- Android 为第一优先级；桌面（Linux/macOS/Windows）保留 FFI 后端路径，
+  目录结构可继续扩展。
+- 首次启动会请求系统 VPN 授权；连接期间通过前台通知保活，可从通知直接断开。
+- 无核心的环境（纯 UI 预览/单测）自动回退 Mock 后端。
 
 ## 参考
+
 - [EasyTier/EasyTier](https://github.com/EasyTier/EasyTier) —— Rust 实现的去中心化 mesh VPN。
 - [EasyTier/astral](https://github.com/EasyTier/astral) —— 参考的 Flutter + Rust 客户端设计。

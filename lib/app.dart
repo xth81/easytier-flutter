@@ -29,6 +29,7 @@ class _EasyTierAppState extends State<EasyTierApp> {
   final AppSettings _settings = AppSettings.instance;
   late EasyTierController _controller = widget.controller;
   int _tab = 0;
+  bool _swapping = false;
 
   @override
   void initState() {
@@ -80,7 +81,7 @@ class _EasyTierAppState extends State<EasyTierApp> {
               _settings.setSeedColor(color);
               setState(() {});
             },
-            onBackendChanged: _swapBackend,
+            onBackendChanged: _refreshSettings,
           ),
         ],
       ),
@@ -113,16 +114,34 @@ class _EasyTierAppState extends State<EasyTierApp> {
     );
   }
 
+  /// Called by the settings screen for changes that don't swap the backend
+  /// (auto-connect toggle) as well as by [_swapBackend].
+  Future<void> _refreshSettings() async {
+    if (!_settings.developerMockBackend ||
+        _controller.backend.backendName == 'Mock') {
+      // Same backend selection: just rebuild.
+      setState(() {});
+      return;
+    }
+    await _swapBackend();
+  }
+
   Future<void> _swapBackend() async {
-    final next = await EasyTierController.create(
-      forceMock: _settings.developerMockBackend,
-    );
-    final old = _controller;
-    setState(() {
-      _controller = next;
-      _controller.addListener(_onControllerChanged);
-    });
-    old.dispose();
-    widget.onControllerChanged?.call(next);
+    if (_swapping) return;
+    _swapping = true;
+    try {
+      final next = await EasyTierController.create(
+        forceMock: _settings.developerMockBackend,
+      );
+      final old = _controller;
+      setState(() {
+        _controller = next;
+        _controller.addListener(_onControllerChanged);
+      });
+      old.dispose();
+      widget.onControllerChanged?.call(next);
+    } finally {
+      _swapping = false;
+    }
   }
 }

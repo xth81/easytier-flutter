@@ -1,10 +1,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Necessary for VPN tunneling (VpnService) and network access. -->
+    <!-- VPN tunneling (VpnService) and networking. -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
@@ -30,16 +30,21 @@
             </intent-filter>
         </activity>
 
-        <!-- The VPN service that owns the TUN device and hands its fd to the
-             EasyTier core. Declared here so the system can bind, start and
-             show the persistent VPN notification for it. -->
+        <!-- The VPN service owns the TUN device and runs the vendored EasyTier
+             Rust core in its own process. The core keeps the tunnel alive even
+             when the UI process is killed or restarted. -->
         <service
             android:name=".EasyTierVpnService"
+            android:process=":vpn"
             android:exported="false"
+            android:foregroundServiceType="specialUse"
             android:permission="android.permission.BIND_VPN_SERVICE">
             <intent-filter>
                 <action android:name="android.net.VpnService" />
             </intent-filter>
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="VPN tunnel for the EasyTier mesh network" />
         </service>
 
         <meta-data
