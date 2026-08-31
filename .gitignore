@@ -1,0 +1,19 @@
+# Miscellaneous
+*.log
+.DS_Store
+.dart_tool/
+.packages
+build/
+flutter_linux.tar.xz
+curl.log
+
+# Android / local build artifacts
+android/.gradle/
+android/app/build/
+android/local.properties
+**/build/
+
+# IDE
+.idea/
+*.iml
+.vscode/

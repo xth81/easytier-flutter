@@ -1,0 +1,12 @@
+include: package:flutter_lints/flutter.yaml
+
+linter:
+  rules:
+    prefer_const_constructors: true
+    prefer_const_declarations: true
+    unnecessary_this: true
+
+analyzer:
+  errors:
+    # Keep the lints pragmatic for an early scaffold.
+    avoid_print: error

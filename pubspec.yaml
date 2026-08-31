@@ -1,0 +1,28 @@
+name: easytier_flutter
+description: "EasyTier cross-platform client, Material 3, Android-first."
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Persistence for settings.
+  shared_preferences: ^2.3.2
+
+  # For the real FFI backend (native pointer handling).
+  ffi: ^2.1.2
+
+  # Cupertino icons for the iOS/Material mix.
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
