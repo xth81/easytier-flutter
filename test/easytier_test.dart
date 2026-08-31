@@ -163,6 +163,29 @@ void main() {
       expect(route.latencyMs, 5);
     });
 
+    test('parses uint32 protobuf JSON addresses', () {
+      // prost/pbjson serializes Ipv4Addr.addr as the raw uint32
+      // (host byte order), not as an array.
+      final snapshot = jsonDecode('''
+      {
+        "running": true,
+        "my_node_info": {
+          "hostname": "node-a",
+          "virtual_ipv4": {"address": {"addr": 177246308}, "network_length": 24}
+        },
+        "peers": [],
+        "routes": [
+          {"peer_id": 1, "next_hop_peer_id": 0,
+           "ipv4_addr": {"address": {"addr": 177246308}, "network_length": 24},
+           "hostname": "node-a"}
+        ]
+      }
+      ''') as Map<String, dynamic>;
+      final status = EasyTierStatusJson.parseStatus(
+          snapshot, instanceName: 'easytier');
+      expect(status.ipv4, '10.144.144.100/24');
+    });
+
     test('falls back to error state when core reports error', () {
       final status = EasyTierStatusJson.parseStatus(
         {'running': false, 'error_msg': 'failed to start'},
