@@ -11,6 +11,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     # The Flutter project lives at the repo root (easy path) or under
     # easytier-flutter/. Auto-detect below.
     steps:
@@ -93,3 +95,16 @@ jobs:
         with:
           name: easytier-release-apk
           path: ${{ steps.proj.outputs.proj }}/build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Publish GitHub Release (latest)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: 'EasyTier Flutter Client (latest)'
+          body: |
+            Android APK（Material 3 / astral 风格）。
+            - Material 3 客户端：状态仪表盘、网络配置、节点/路由、设置。
+            - FFI 真实核心 + Mock 模拟双后端。
+          files: |
+            ${{ steps.proj.outputs.proj }}/build/app/outputs/flutter-apk/app-release.apk
+            ${{ steps.proj.outputs.proj }}/build/app/outputs/flutter-apk/app-debug.apk
