@@ -11,10 +11,6 @@ import '../../data/models/peer_info.dart';
 import 'easytier_backend.dart';
 import 'ffi_bindings.dart';
 
-/// Legacy convenience typedef so a caller can bind the native library.
-typedef _ParseConfigNative = ffi.Int32 Function(ffi.Pointer<ffi.Int8> cfg);
-typedef _ParseConfigDart = int Function(ffi.Pointer<ffi.Int8> cfg);
-
 /// An [EasyTierBackend] backed by the real embeddable EasyTier Rust core,
 /// loaded via the `easytier-ffi` C ABI.
 ///
@@ -22,11 +18,6 @@ typedef _ParseConfigDart = int Function(ffi.Pointer<ffi.Int8> cfg);
 /// On Android the `.so` is bundled in the APK's `jniLibs` (built from the
 /// `rust_builder`/cargokit setup); on desktop it is resolved relative to the
 /// executable.
-///
-/// The backend is intentionally thin: it marshals TOML to/from the native
-/// side, converts `collectNetworkInfos` JSON into the normalized [NetworkStatus]
-/// and peers, and polls the native side on a light cadence so the UI has live
-/// data. It does not interpret config logic — that lives in [NetworkConfig].
 class EasyTierFfiBackend implements EasyTierBackend {
   EasyTierFfiBackend({
     required this.libraryName,
@@ -73,31 +64,74 @@ class EasyTierFfiBackend implements EasyTierBackend {
     listener?.call(s);
   }
 
+  // ---- FFI call helpers ----
+
+  /// `int parse_config(const char *cfg)`.
+  late final int Function(ffi.Pointer<Utf8>) _parseConfig = _requireLib()
+      .lookup<ffi.NativeFunction<ffi.Int32 Function(ffi.Pointer<Utf8>)>>(
+          'parse_config')
+      .asFunction();
+
+  /// `int run_network_instance(const char *cfg)`.
+  late final int Function(ffi.Pointer<Utf8>) _runNetworkInstance = _requireLib()
+      .lookup<ffi.NativeFunction<ffi.Int32 Function(ffi.Pointer<Utf8>)>>(
+          'run_network_instance')
+      .asFunction();
+
+  /// `int set_tun_fd(const char *name, int fd)`.
+  late final int Function(ffi.Pointer<Utf8>, int) _setTunFd = _requireLib()
+      .lookup<ffi.NativeFunction<
+          ffi.Int32 Function(ffi.Pointer<Utf8>, ffi.Int32)>>('set_tun_fd')
+      .asFunction();
+
+  /// `int retain_network_instance(const char **names, size_t len)`.
+  late final int Function(ffi.Pointer<ffi.Pointer<Utf8>>, int)
+      _retainNetworkInstance = _requireLib()
+          .lookup<ffi.NativeFunction<
+              ffi.Int32 Function(
+                  ffi.Pointer<ffi.Pointer<Utf8>>, ffi.Size)>>(
+              'retain_network_instance')
+          .asFunction();
+
+  /// `void get_error_msg(char **out)`.
+  late final void Function(ffi.Pointer<ffi.Pointer<Utf8>>) _getErrorMsg =
+      _requireLib()
+          .lookup<ffi.NativeFunction<
+              ffi.Void Function(ffi.Pointer<ffi.Pointer<Utf8>>)>>(
+              'get_error_msg')
+          .asFunction();
+
+  /// `void free_string(const char *s)`.
+  late final void Function(ffi.Pointer<Utf8>) _freeString = _requireLib()
+      .lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<Utf8>)>>(
+          'free_string')
+      .asFunction();
+
+  /// `int collect_network_infos(KeyValuePair *infos, size_t max)`.
+  late final int Function(ffi.Pointer<KeyValuePair>, int) _collectNetworkInfos =
+      _requireLib()
+          .lookup<ffi.NativeFunction<
+              ffi.Int32 Function(ffi.Pointer<KeyValuePair>, ffi.Size)>>(
+              'collect_network_infos')
+          .asFunction();
+
   @override
   Future<void> start(NetworkConfig config) async {
     await stop();
 
-    final lib = _requireLib();
-    final native = lib
-        .lookup<ffi.NativeFunction<_ParseConfigNative>>('parse_config')
-        .asFunction<_ParseConfigDart>();
+    final cfg = config.toToml();
 
-    final cfgPtr = config.toToml().toNativeUtf8();
+    final cfgPtr = cfg.toNativeUtf8();
     try {
-      final rc = native(cfgPtr);
-      if (rc != 0) {
-        throw BackendException('parse_config failed: ${_lastError()}');
-      }
+      final rc = _parseConfig(cfgPtr);
+      if (rc != 0) throw BackendException('parse_config failed: ${_lastError()}');
     } finally {
       malloc.free(cfgPtr);
     }
 
-    final runNative = lib
-        .lookup<ffi.NativeFunction<_ParseConfigNative>>('run_network_instance')
-        .asFunction<_ParseConfigDart>();
-    final runPtr = config.toToml().toNativeUtf8();
+    final runPtr = cfg.toNativeUtf8();
     try {
-      final rc = runNative(runPtr);
+      final rc = _runNetworkInstance(runPtr);
       if (rc != 0) {
         throw BackendException('run_network_instance failed: ${_lastError()}');
       }
@@ -123,16 +157,8 @@ class EasyTierFfiBackend implements EasyTierBackend {
     _poll = null;
     if (!_running) return;
 
-    final lib = _lib;
-    if (lib != null) {
-      // retain_network_instance with length 0 stops all instances.
-      final retain = lib
-          .lookup<ffi.NativeFunction<ffi.Int32 Function(
-              ffi.Pointer<ffi.Pointer<ffi.Int8>>, ffi.Size)>>(
-        'retain_network_instance',
-      );
-      retain(null, 0);
-    }
+    // retain_network_instance with length 0 stops all instances.
+    _retainNetworkInstance(ffi.nullptr, 0);
     _running = false;
     _setStatus(NetworkStatus.disconnected);
   }
@@ -145,13 +171,9 @@ class EasyTierFfiBackend implements EasyTierBackend {
 
   @override
   Future<bool> setTunFd(int fd) async {
-    final lib = _lib;
-    if (lib == null) return false;
-    final setTun = lib.lookup<ffi.NativeFunction<ffi.Int32 Function(
-            ffi.Pointer<ffi.Int8>, ffi.Int32)>>('set_tun_fd');
     final namePtr = _currentInstance.toNativeUtf8();
     try {
-      return setTun(namePtr, fd) == 0;
+      return _setTunFd(namePtr, fd) == 0;
     } finally {
       malloc.free(namePtr);
     }
@@ -183,17 +205,13 @@ class EasyTierFfiBackend implements EasyTierBackend {
   }
 
   String _lastError() {
-    final lib = _requireLib();
-    final getErr = lib.lookup<ffi.NativeFunction<ffi.Void Function(
-        ffi.Pointer<ffi.Pointer<ffi.Int8>>)>>('get_error_msg');
     final outPtr = calloc<ffi.Pointer<ffi.Int8>>();
     try {
-      getErr(outPtr);
+      _getErrorMsg(outPtr);
       final msg = outPtr.value;
       if (msg == ffi.nullptr) return '';
       final s = msg.toDartString();
-      lib.lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Int8>)>>(
-          'free_string')(msg);
+      _freeString(msg);
       return s;
     } finally {
       calloc.free(outPtr);
@@ -205,11 +223,7 @@ class EasyTierFfiBackend implements EasyTierBackend {
     const max = 8;
     final infos = calloc<KeyValuePair>(max);
     try {
-      final lib = _requireLib();
-      final collect = lib
-          .lookup<ffi.NativeFunction<ffi.Int32 Function(
-              ffi.Pointer<KeyValuePair>, ffi.Size)>>('collect_network_infos');
-      final count = collect(infos, max);
+      final count = _collectNetworkInfos(infos, max);
       if (count <= 0) return null;
       for (var i = 0; i < count; i++) {
         final key = infos[i].key.toDartString();

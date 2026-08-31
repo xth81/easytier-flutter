@@ -55,22 +55,13 @@ class ConnectionHeroCard extends StatelessWidget {
     );
   }
 
-  String _title(TunnelState state) {
-    switch (state) {
-      case TunnelState.disconnected:
-        return '未连接';
-      case TunnelState.connecting:
-        return '正在连接';
-      case TunnelState.connected:
-        return '已连接';
-      case TunnelState.error:
-        return '连接出错';
-      case TunnelState.waiting:
-        return '等待节点';
-    }
-    // Defensive fallback (unreachable for a closed enum).
-    return '未知状态';
-  }
+  String _title(TunnelState state) => switch (state) {
+        TunnelState.disconnected => '未连接',
+        TunnelState.connecting => '正在连接',
+        TunnelState.connected => '已连接',
+        TunnelState.error => '连接出错',
+        TunnelState.waiting => '等待节点',
+      };
 
   String _subtitle(NetworkStatus status) {
     if (status.state == TunnelState.connected) {
@@ -108,20 +99,13 @@ class _StatusRing extends StatelessWidget {
   final ColorScheme scheme;
   const _StatusRing({required this.status, required this.scheme});
 
-  Color get _color {
-    switch (status.state) {
-      case TunnelState.connected:
-        return const Color(0xFF00C853);
-      case TunnelState.connecting:
-        return scheme.tertiary;
-      case TunnelState.waiting:
-        return scheme.primary;
-      case TunnelState.error:
-        return scheme.error;
-      case TunnelState.disconnected:
-        return scheme.outline;
-    }
-  }
+  Color get _color => switch (status.state) {
+        TunnelState.connected => const Color(0xFF00C853),
+        TunnelState.connecting => scheme.tertiary,
+        TunnelState.waiting => scheme.primary,
+        TunnelState.error => scheme.error,
+        TunnelState.disconnected => scheme.outline,
+      };
 
   @override
   Widget build(BuildContext context) {

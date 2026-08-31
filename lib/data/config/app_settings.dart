@@ -67,7 +67,7 @@ class AppSettings {
     );
   }
 
-  String _encodeColor(Color c) => jsonEncode([c.toARGB32()]);
+  String _encodeColor(Color c) => jsonEncode([c.value]);
 
   Color? _decodeColor(String? encoded) {
     if (encoded == null) return null;
