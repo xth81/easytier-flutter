@@ -103,28 +103,17 @@ class AndroidServiceBackend implements EasyTierBackend {
       running: true,
     ));
     try {
-      // Ask for VPN consent first (triggers the Android dialog on first use).
-      final prepared = await _channel.invokeMethod<bool>('prepareVpn');
-      if (!(prepared ?? false)) {
-        _lastError = '未授予 VPN 权限';
-        _setStatus(NetworkStatus(
-          state: TunnelState.disconnected,
-          instanceName: config.instanceName,
-          running: false,
-          lastError: _lastError,
-        ));
-        return;
-      }
-
       final args = <String, dynamic>{
         'config': config.toToml(),
         'ipv4': _tunIpv4(config),
         'routes': _tunRoutes(config),
         'dns': _dnsEnabled(config) ? '100.100.100.101' : null,
       };
+      // startVpn asks for the Android VPN consent (system dialog on first
+      // use) and only starts the service once it is granted.
       final started = await _channel.invokeMethod<bool>('startVpn', args);
       if (!(started ?? false)) {
-        _lastError = '启动 VPN 服务失败';
+        _lastError = '未授予 VPN 权限或服务启动失败';
         _setStatus(NetworkStatus(
           state: TunnelState.disconnected,
           instanceName: config.instanceName,
