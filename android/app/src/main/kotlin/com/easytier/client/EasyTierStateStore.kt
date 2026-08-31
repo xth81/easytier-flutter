@@ -7,8 +7,9 @@ import android.content.SharedPreferences
  * Small state helper shared between the UI process and the `:vpn` service
  * process (Multi-process mode of SharedPreferences).
  *
- * `writeRunning`/`wasRunning` are only a liveness hint: the authoritative
- * "is the VPN running" signal is `VpnService.prepare(context) == null`.
+ * `writeRunning`/`wasRunning` are a cross-process liveness hint: the
+ * authoritative "is the VPN running" signal is the service binder's state
+ * (STATE_RUNNING), with the hint used only while the binder is (re)attaching.
  */
 object EasyTierStateStore {
 
