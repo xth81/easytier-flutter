@@ -114,12 +114,13 @@ class _EasyTierAppState extends State<EasyTierApp> {
     );
   }
 
-  /// Called by the settings screen for changes that don't swap the backend
-  /// (auto-connect toggle) as well as by [_swapBackend].
+  /// Called by the settings screen for backend/behavior changes. Rebuilds,
+  /// and swaps the engine only when the current backend doesn't match the
+  /// developer mock toggle.
   Future<void> _refreshSettings() async {
-    if (!_settings.developerMockBackend ||
-        _controller.backend.backendName == 'Mock') {
-      // Same backend selection: just rebuild.
+    final wantMock = _settings.developerMockBackend;
+    final isMock = _controller.backend.backendName == 'Mock';
+    if (wantMock == isMock) {
       setState(() {});
       return;
     }

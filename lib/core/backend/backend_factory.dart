@@ -1,3 +1,4 @@
+import 'dart:ffi' as ffi;
 import 'dart:io' show Platform;
 
 import '../../data/config/app_settings.dart';
@@ -12,8 +13,9 @@ import 'service_backend.dart';
 ///  * If the user has force-selected the mock backend (developer toggle), use
 ///    the in-memory engine everywhere.
 ///  * On Android, drive the `:vpn` service process which runs the bundled
-///    Rust core. If the native libraries are missing (pure emulator preview),
-///    fall back to the in-process FFI backend, then to mock.
+///    Rust core. Core availability is detected by directly probing the
+///    bundled `libeasytier_ffi.so` — NOT through the MethodChannel, because
+///    the controller is created before `runApp`/the Flutter engine exists.
 ///  * On desktop, try the FFI core; the mock is a reliable fallback.
 class EasyTierBackendFactory {
   /// Create and initialize a backend.
@@ -29,27 +31,39 @@ class EasyTierBackendFactory {
 
     if (Platform.isAndroid) {
       // Real device / APK with bundled core: service backend.
-      if (await AndroidServiceBackend.isCoreAvailable()) {
+      if (_isCoreBundled()) {
         final service = AndroidServiceBackend();
         await service.initialize();
         return service;
       }
-
-      // Emulator preview without the bundled libs: in-process FFI still
-      // cannot load a .so, so mock is the effective fallback below.
+      // Emulator preview without the bundled libs: fall through to mock.
     }
 
-    final ffi = EasyTierFfiBackend(
+    final ffiBackend = EasyTierFfiBackend(
       libraryName: _defaultLibraryName(),
     );
     try {
-      await ffi.initialize();
-      return ffi;
+      await ffiBackend.initialize();
+      return ffiBackend;
     } catch (_) {
       // Fall back to the simulator if the native lib is not present.
       final mock = MockEasyTierBackend();
       await mock.initialize();
       return mock;
+    }
+  }
+
+  /// Whether the vendored core `.so` is packaged in the APK. Works before the
+  /// Flutter engine / platform channels exist.
+  static bool _isCoreBundled() {
+    try {
+      // Loading in the app process is harmless (the :vpn process loads its
+      // own copy) and proves the libraries survived packaging.
+      ffi.DynamicLibrary.open('libeasytier_ffi.so');
+      ffi.DynamicLibrary.open('libeasytier_android_jni.so');
+      return true;
+    } catch (_) {
+      return false;
     }
   }
 

@@ -4,6 +4,9 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.app.Service.START_NOT_STICKY
+import android.app.Service.START_STICKY
+import android.app.Service.STOP_FOREGROUND_REMOVE
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -49,7 +52,6 @@ class EasyTierVpnService : VpnService() {
         const val EXTRA_IPV4 = "ipv4"
         const val EXTRA_ROUTES = "routes"
         const val EXTRA_DNS = "dns"
-        const val EXTRA_MTU = "mtu"
 
         /** Binder state values (also returned through AIDL). */
         const val STATE_STOPPED = 0
@@ -70,10 +72,6 @@ class EasyTierVpnService : VpnService() {
          */
         fun prepare(context: Context): Boolean =
             VpnService.prepare(context) == null
-
-        fun prepareIntent(context: Context): Intent? = VpnService.prepare(context)
-
-        fun isRunning(): Boolean = binder?.state() == STATE_RUNNING
 
         fun start(
             context: Context,

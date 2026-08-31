@@ -39,16 +39,6 @@ class AndroidServiceBackend implements EasyTierBackend {
   String _lastError = '';
   bool _starting = false;
 
-  /// Whether the real native core libraries are bundled in this APK.
-  static Future<bool> isCoreAvailable() async {
-    try {
-      final result = await _channel.invokeMethod<bool>('isSupported');
-      return result ?? false;
-    } catch (_) {
-      return false;
-    }
-  }
-
   @override
   void Function(NetworkStatus status)? listener;
 
