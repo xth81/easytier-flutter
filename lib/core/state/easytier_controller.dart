@@ -47,10 +47,10 @@ class EasyTierController extends ChangeNotifier {
   List<RouteInfo> get routes => _routes;
   NetworkConfig? get activeConfig => _activeConfig;
   EasyTierBackend get backend => _backend;
-  bool get isConnected => _status.state == TunnelState.connected;
-  bool get isConnecting => _status.state == TunnelState.connecting;
-  bool get isRunning => _status.running;
-  String? get lastError => _status.lastError;
+  bool get isConnected => status.state == TunnelState.connected;
+  bool get isConnecting => status.state == TunnelState.connecting;
+  bool get isRunning => status.running || isConnecting;
+  String? get lastError => status.lastError;
 
   /// Create a controller, auto-selecting mock vs FFI/service backend.
   static Future<EasyTierController> create({bool forceMock = false}) async {
@@ -129,7 +129,6 @@ class EasyTierController extends ChangeNotifier {
       await start(config);
     }
   }
-
   /// Refresh status/peers (pull-to-refresh).
   Future<void> refresh() async {
     await _backend.refresh();
