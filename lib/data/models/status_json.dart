@@ -46,9 +46,7 @@ class EasyTierStatusJson {
 
     final myNode = map['my_node_info'];
     String? ipv4;
-    String? hostname = instanceName;
     if (myNode is Map) {
-      hostname = myNode['hostname'] as String? ?? instanceName;
       ipv4 = _ipv4InetToString(myNode['virtual_ipv4']);
       if (ipv4 == null) {
         ipv4 = _firstIpv4(myNode['ips']);

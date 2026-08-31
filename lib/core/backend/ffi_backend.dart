@@ -90,15 +90,6 @@ class EasyTierFfiBackend implements EasyTierBackend {
               'retain_network_instance')
           .asFunction();
 
-  /// `int delete_network_instance(const char **names, size_t len)`.
-  late final int Function(ffi.Pointer<ffi.Pointer<Utf8>>, int)
-      _deleteNetworkInstance = _requireLib()
-          .lookup<ffi.NativeFunction<
-              ffi.Int32 Function(
-                  ffi.Pointer<ffi.Pointer<Utf8>>, ffi.Size)>>(
-              'delete_network_instance')
-          .asFunction();
-
   /// `void get_error_msg(char **out)`.
   late final void Function(ffi.Pointer<ffi.Pointer<Utf8>>) _getErrorMsg =
       _requireLib()
