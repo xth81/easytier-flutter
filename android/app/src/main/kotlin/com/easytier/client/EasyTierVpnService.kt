@@ -6,6 +6,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.graphics.drawable.Icon
 import android.net.VpnService
 import android.os.Build
 import android.os.ParcelFileDescriptor
@@ -109,12 +110,8 @@ class EasyTierVpnService : VpnService() {
         val parts = cidr.split("/")
         val addr = parts[0]
         val prefix = if (parts.size > 1) parts[1].toInt() else 24
-        val bytes = addr.split(".").map { it.toInt() }.toIntArray()
-        if (bytes.size == 4) {
-            builder.addRoute(byteArrayOf(
-                bytes[0].toByte(), bytes[1].toByte(), bytes[2].toByte(), bytes[3].toByte()
-            ), prefix)
-        }
+        // VpnService.Builder.addRoute(String, int) accepts a dotted-quad IPv4.
+        builder.addRoute(addr, prefix)
     }
 
     private fun buildNotification(): Notification {
@@ -147,7 +144,13 @@ class EasyTierVpnService : VpnService() {
             .setContentText("正在运行 $instanceName")
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setContentIntent(contentIntent)
-            .addAction(Notification.Action.Builder(null, "断开", stopIntent).build())
+            .addAction(
+                Notification.Action.Builder(
+                    Icon.createWithResource(this, android.R.drawable.ic_dialog_info),
+                    "断开",
+                    stopIntent
+                ).build()
+            )
             .build()
     }
 
