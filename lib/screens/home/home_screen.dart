@@ -77,7 +77,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ConnectionHeroCard(
               controller: controller,
               onToggle: () => controller.toggle(),
-              onEditConfig: widget.onGoConfig,
             ),
             const SizedBox(height: 16),
             // Network identity + local node summary in one compact card.
@@ -105,17 +104,6 @@ class _HomeScreenState extends State<HomeScreen> {
             SectionCard(
               title: '节点 (${controller.peers.length})',
               icon: Icons.hub_outlined,
-              trailing: TextButton(
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => Scaffold(
-                      appBar: AppBar(title: const Text('节点')),
-                      body: _PeerList(controller: controller),
-                    ),
-                  ),
-                ),
-                child: const Text('全部'),
-              ),
               child: _PeerPreview(controller: controller),
             ),
           ],
@@ -252,56 +240,6 @@ class _PeerPreview extends StatelessWidget {
           ),
         ],
       ],
-    );
-  }
-}
-
-class _PeerList extends StatelessWidget {
-  final EasyTierController controller;
-
-  const _PeerList({required this.controller});
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final peers = controller.peers;
-    if (peers.isEmpty) {
-      return Center(
-        child: Text('暂无节点',
-            style: TextStyle(color: scheme.onSurfaceVariant)),
-      );
-    }
-    return ListView.separated(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      itemCount: peers.length,
-      separatorBuilder: (_, __) => const Divider(height: 1, indent: 72),
-      itemBuilder: (context, index) {
-        final peer = peers[index];
-        return ListTile(
-          leading: CircleAvatar(
-            backgroundColor: scheme.primaryContainer,
-            child: Icon(Icons.computer, color: scheme.onPrimaryContainer),
-          ),
-          title: Text(peer.hostname,
-              style: const TextStyle(fontWeight: FontWeight.w600)),
-          subtitle: Text('${peer.ipv4} · ${peer.natType}'),
-          trailing: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text('${peer.latencyMs}ms',
-                  style: const TextStyle(fontWeight: FontWeight.w700)),
-              StatusPill(
-                label: peer.direct ? '直连' : '中转',
-                color: peer.direct
-                    ? const Color(0xFF00C853)
-                    : scheme.tertiary,
-                filled: false,
-              ),
-            ],
-          ),
-        );
-      },
     );
   }
 }

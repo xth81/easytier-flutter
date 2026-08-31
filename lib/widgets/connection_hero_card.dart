@@ -10,13 +10,11 @@ import 'astral_card.dart';
 class ConnectionHeroCard extends StatelessWidget {
   final EasyTierController controller;
   final VoidCallback onToggle;
-  final VoidCallback? onEditConfig;
 
   const ConnectionHeroCard({
     super.key,
     required this.controller,
     required this.onToggle,
-    this.onEditConfig,
   });
 
   @override
@@ -58,37 +56,26 @@ class ConnectionHeroCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 20),
-          Row(
-            children: [
-              Expanded(
-                child: FilledButton.icon(
-                  style: FilledButton.styleFrom(
-                    backgroundColor:
-                        status.isRunning ? scheme.error : scheme.primary,
-                    foregroundColor:
-                        status.isRunning ? scheme.onError : scheme.onPrimary,
-                    minimumSize: const Size(0, 52),
-                  ),
-                  onPressed: onToggle,
-                  icon: Icon(status.isRunning
-                      ? Icons.stop_circle_outlined
-                      : Icons.power_settings_new),
-                  label: Text(
-                    status.isRunning ? '断开连接' : '开始连接',
-                    style: const TextStyle(
-                        fontSize: 15, fontWeight: FontWeight.w700),
-                  ),
-                ),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor:
+                    status.isRunning ? scheme.error : scheme.primary,
+                foregroundColor:
+                    status.isRunning ? scheme.onError : scheme.onPrimary,
+                minimumSize: const Size(0, 52),
               ),
-              if (onEditConfig != null) ...[
-                const SizedBox(width: 12),
-                IconButton.outlined(
-                  onPressed: onEditConfig,
-                  tooltip: '配置网络',
-                  icon: const Icon(Icons.tune),
-                ),
-              ],
-            ],
+              onPressed: onToggle,
+              icon: Icon(status.isRunning
+                  ? Icons.stop_circle_outlined
+                  : Icons.power_settings_new),
+              label: Text(
+                status.isRunning ? '断开连接' : '开始连接',
+                style: const TextStyle(
+                    fontSize: 15, fontWeight: FontWeight.w700),
+              ),
+            ),
           ),
           if (status.lastError != null && status.lastError!.isNotEmpty) ...[
             const SizedBox(height: 12),
