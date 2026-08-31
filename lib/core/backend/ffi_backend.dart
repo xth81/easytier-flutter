@@ -205,7 +205,7 @@ class EasyTierFfiBackend implements EasyTierBackend {
   }
 
   String _lastError() {
-    final outPtr = calloc<ffi.Pointer<ffi.Int8>>();
+    final outPtr = calloc<ffi.Pointer<Utf8>>();
     try {
       _getErrorMsg(outPtr);
       final msg = outPtr.value;
