@@ -169,10 +169,10 @@ class NetworkConfig {
   ///
   /// Mirrors the field names EasyTier's `TomlConfigLoader` expects (verified
   /// against `easytier-core/src/config/toml.rs`):
-  ///  * top level: `instance_name`, `hostname`, `dhcp`, `listeners`,
-  ///    `exit_nodes`, `routes`, and `[[peer]]` table entries;
+  ///  * top level: `instance_name`, `hostname`, `dhcp`, static `ipv4`,
+  ///    `listeners`, `exit_nodes`, `routes`, and `[[peer]]` table entries;
   ///  * `[network_identity]` with `network_name` / `network_secret`;
-  ///  * the well-known flags (`enable_exit_node`, `no_tun`, static `ipv4`,
+  ///  * the well-known flags (`enable_exit_node`, `no_tun`, `accept_dns`,
   ///    `mtu`...) go into `[flags]`.
   String toToml() {
     final buffer = StringBuffer()
