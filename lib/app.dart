@@ -81,7 +81,7 @@ class _EasyTierAppState extends State<EasyTierApp> {
               _settings.setSeedColor(color);
               setState(() {});
             },
-            onBackendChanged: _refreshSettings,
+            onSettingsChanged: _refreshSettings,
           ),
         ],
       ),

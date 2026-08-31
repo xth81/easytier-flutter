@@ -12,7 +12,9 @@ class SettingsScreen extends StatelessWidget {
   final EasyTierController controller;
   final void Function(ThemeMode mode) onThemeMode;
   final void Function(Color color) onSeedColor;
-  final void Function() onBackendChanged;
+
+  /// Rebuild + engine swap handler (backend toggles, auto-connect).
+  final VoidCallback onSettingsChanged;
 
   const SettingsScreen({
     super.key,
@@ -20,7 +22,7 @@ class SettingsScreen extends StatelessWidget {
     required this.controller,
     required this.onThemeMode,
     required this.onSeedColor,
-    required this.onBackendChanged,
+    required this.onSettingsChanged,
   });
 
   @override
@@ -56,7 +58,7 @@ class SettingsScreen extends StatelessWidget {
                   value: settings.autoStart,
                   onChanged: (v) {
                     settings.setAutoStart(v);
-                    onBackendChanged();
+                    onSettingsChanged();
                   },
                   title: const Text('启动时自动连接'),
                   subtitle: const Text('使用已保存的配置在应用启动后自动组网'),
@@ -83,7 +85,7 @@ class SettingsScreen extends StatelessWidget {
                   value: settings.developerMockBackend,
                   onChanged: (v) {
                     settings.setDeveloperMockBackend(v);
-                    onBackendChanged();
+                    onSettingsChanged();
                   },
                   title: const Text('模拟后端（开发预览）'),
                   subtitle: const Text('无真实 EasyTier 时用于预览界面与测试流程'),
