@@ -37,7 +37,10 @@ class _NetworksScreenState extends State<NetworksScreen> {
   @override
   void initState() {
     super.initState();
-    _load(AppSettings.instance.effectiveConfig);
+    _load(
+      AppSettings.instance.savedConfig ??
+          AppSettings.instance.effectiveConfig,
+    );
   }
 
   @override
@@ -47,7 +50,7 @@ class _NetworksScreenState extends State<NetworksScreen> {
     // locally by this screen so the form is never clobbered by its own edits.
     if (oldWidget.controller != widget.controller) {
       final cfg = widget.controller.activeConfig ??
-          AppSettings.instance.effectiveConfig;
+          (AppSettings.instance.savedConfig ?? NetworkConfig.defaults());
       _load(cfg);
     }
   }
