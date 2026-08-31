@@ -14,7 +14,7 @@
 #   * ZSTD_SYS_STATIC=1 makes zstd-sys build the C backend into a static lib
 #     instead of looking for a system libzstd in the NDK.
 #   * BINDGEN_EXTRA_CLANG_ARGS feeds the NDK sysroot + clang builtin headers
-#     to bindgen (needed by kcp/zstd C bindings).
+#     to bindgen (needed by the zstd C bindings).
 set -euo pipefail
 
 cd "$(dirname "$0")"
