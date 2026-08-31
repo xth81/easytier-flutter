@@ -7,7 +7,9 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.ServiceConnection
+import android.content.pm.PackageManager
 import android.net.VpnService
+import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import androidx.core.content.ContextCompat
@@ -26,6 +28,7 @@ class MainActivity : FlutterActivity() {
         private const val TAG = "EasyTierMain"
         private const val CHANNEL = "com.easytier.client/vpn"
         private const val VPN_PREPARE_REQUEST = 0xE7E1
+        private const val NOTIFICATION_PERMISSION_REQUEST = 0xE7E2
     }
 
     private var channel: MethodChannel? = null
@@ -190,6 +193,11 @@ class MainActivity : FlutterActivity() {
 
         EasyTierStateStore.writeTunParams(this, ipv4, dns, routes.toTypedArray())
 
+        // Android 13+: the foreground service notification is hidden without
+        // this permission. Request it opportunistically; the VPN still works
+        // if the user denies it.
+        requestNotificationsPermission()
+
         try {
             EasyTierVpnService.start(
                 this,
@@ -202,6 +210,20 @@ class MainActivity : FlutterActivity() {
         } catch (e: Exception) {
             Log.e(TAG, "failed to start VPN service", e)
             result.success(false)
+        }
+    }
+
+    private fun requestNotificationsPermission() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        val granted = ContextCompat.checkSelfPermission(
+            this,
+            android.Manifest.permission.POST_NOTIFICATIONS,
+        ) == PackageManager.PERMISSION_GRANTED
+        if (!granted) {
+            requestPermissions(
+                arrayOf(android.Manifest.permission.POST_NOTIFICATIONS),
+                NOTIFICATION_PERMISSION_REQUEST,
+            )
         }
     }
 
