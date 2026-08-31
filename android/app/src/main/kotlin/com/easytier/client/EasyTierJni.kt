@@ -50,6 +50,8 @@ object EasyTierJni {
     fun lastError(): String = lastErrors[Thread.currentThread().id] ?: loadFailure ?: ""
 
     // ---- exported native methods (see easytier-android-jni/src/lib.rs) ----
+    // Each native method may throw RuntimeException carrying the FFI thread
+    // error (get_error_msg); safeCall below folds that into lastError().
 
     @JvmStatic
     external fun parseConfig(config: String): Int
