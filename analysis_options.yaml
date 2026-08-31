@@ -8,5 +8,4 @@ linter:
 
 analyzer:
   errors:
-    # Keep the lints pragmatic for an early scaffold.
     avoid_print: error
