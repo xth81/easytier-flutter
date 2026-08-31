@@ -58,6 +58,7 @@ jobs:
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
         with:
+          # Must match rust/rust-toolchain.toml (vendored EasyTier requires 1.95).
           toolchain: "1.95"
 
       - name: Set up Android Rust targets
@@ -74,11 +75,11 @@ jobs:
       - name: Build EasyTier Rust core (Android ABIs)
         working-directory: ${{ steps.proj.outputs.proj }}/rust
         env:
-          ANDROID_NDK_HOME: ${{ env.ANDROID_NDK_HOME }}
+          ANDROID_NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/26.1.10909125
           NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/26.1.10909125
         run: |
           echo "ANDROID_HOME=$ANDROID_HOME"
-          echo "ANDROID_NDK_HOME=${ANDROID_NDK_HOME:-$ANDROID_HOME/ndk/26.1.10909125}"
+          echo "ANDROID_NDK_HOME=$ANDROID_NDK_HOME"
           ./build.sh arm64-v8a armeabi-v7a x86_64
 
       - name: Configure Android local.properties
