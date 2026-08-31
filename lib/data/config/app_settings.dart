@@ -67,7 +67,17 @@ class AppSettings {
     );
   }
 
-  String _encodeColor(Color c) => jsonEncode([c.value]);
+  /// Encode a [Color] as a single ARGB int using the component accessors
+  /// (`.a/.r/.g/.b` return 0..1 doubles).
+  String _encodeColor(Color c) {
+    final int a = (c.a * 255).round() & 0xFF;
+    final int r = (c.r * 255).round() & 0xFF;
+    final int g = (c.g * 255).round() & 0xFF;
+    final int b = (c.b * 255).round() & 0xFF;
+    return jsonEncode([
+      (a << 24) | (r << 16) | (g << 8) | b,
+    ]);
+  }
 
   Color? _decodeColor(String? encoded) {
     if (encoded == null) return null;

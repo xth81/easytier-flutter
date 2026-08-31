@@ -105,7 +105,7 @@ class _NetworksScreenState extends State<NetworksScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SectionHeader(title: '网络身份', icon: Icons.badge_outlined),
+              const SectionHeader(title: '网络身份', icon: Icons.badge_outlined),
               const SizedBox(height: 16),
               _field(_networkName, '网络名称', '与其它节点保持一致，如 easytier'),
               _field(_instanceName, '实例名称', '本机唯一标识'),
@@ -134,7 +134,7 @@ class _NetworksScreenState extends State<NetworksScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SectionHeader(title: '接入点与节点', icon: Icons.public_outlined),
+              const SectionHeader(title: '接入点与节点', icon: Icons.public_outlined),
               const SizedBox(height: 16),
               _field(_peers, '种子节点 (Peer)', '每行一个，如 tcp://1.2.3.4:11010'),
               const SizedBox(height: 16),
@@ -156,7 +156,7 @@ class _NetworksScreenState extends State<NetworksScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SectionHeader(title: '高级选项', icon: Icons.tune_outlined),
+              const SectionHeader(title: '高级选项', icon: Icons.tune_outlined),
               const SizedBox(height: 8),
               Text(
                 '这些选项可通过 TOML 配置 / RPC 进一步控制加密、协议与 P2P 行为。',

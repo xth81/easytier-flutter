@@ -34,7 +34,7 @@ class SettingsScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SectionHeader(title: '外观', icon: Icons.palette_outlined),
+              const SectionHeader(title: '外观', icon: Icons.palette_outlined),
               const SizedBox(height: 8),
               _modeSelector(context),
               const Divider(height: 24),
@@ -50,7 +50,7 @@ class SettingsScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SectionHeader(title: '网络引擎', icon: Icons.memory),
+              const SectionHeader(title: '网络引擎', icon: Icons.memory),
               const SizedBox(height: 12),
               Text(
                 '当前后端: ${controller.backend.backendName}',
@@ -78,7 +78,7 @@ class SettingsScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SectionHeader(title: '关于', icon: Icons.info_outline),
+              const SectionHeader(title: '关于', icon: Icons.info_outline),
               const SizedBox(height: 12),
               _aboutRow(scheme, '应用', 'EasyTier Flutter 客户端'),
               _aboutRow(scheme, '版本', '0.1.0'),

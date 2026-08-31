@@ -142,7 +142,7 @@ class _PeersCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SectionHeader(title: '节点', icon: Icons.hub_outlined),
+          const SectionHeader(title: '节点', icon: Icons.hub_outlined),
           const SizedBox(height: 12),
           if (peers.isEmpty)
             Padding(

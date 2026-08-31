@@ -16,7 +16,7 @@ void main() {
     });
 
     test('includes static ipv4 when not DHCP', () {
-      final cfg = NetworkConfig(
+      const cfg = NetworkConfig(
         instanceName: 'n',
         hostname: 'host',
         networkName: 'mynet',
@@ -30,7 +30,7 @@ void main() {
     });
 
     test('emits listeners and peers arrays', () {
-      final cfg = NetworkConfig(
+      const cfg = NetworkConfig(
         instanceName: 'n',
         hostname: 'h',
         networkName: 'net',
