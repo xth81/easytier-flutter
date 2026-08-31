@@ -316,17 +316,13 @@ default = [
     "smoltcp",
     "tun",
     "socks5",
-    "kcp",
     "quic",
     "faketcp",
     "magic-dns",
     "zstd",
-    "upnp",
     "icmp-proxy",
-    "management",
     "endpoint-discovery",
     "extended-services",
-    "linux-netlink",
     "tcp-hole-punch",
 ]
 full = [
@@ -404,12 +400,13 @@ endpoint-discovery = [
     "easytier-core/endpoint-discovery",
 ]
 dhcp-ipv4 = ["easytier-core/dhcp-ipv4"]
+# Android has no netlink; public-ipv6-provider is a Linux-only feature that
+# pulls in linux-netlink, so it must not be part of the mobile feature set.
 public-ipv6-provider = ["linux-netlink", "easytier-core/public-ipv6-provider"]
 vpn-portal = ["easytier-core/vpn-portal"]
 wrapped-transport = ["easytier-core/wrapped-transport"]
 extended-services = [
     "dhcp-ipv4",
-    "public-ipv6-provider",
     "vpn-portal",
     "wrapped-transport",
     "proxy-cidr-monitor",
