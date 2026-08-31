@@ -53,6 +53,7 @@ class _NetworksScreenState extends State<NetworksScreen> {
   }
 
   void _load(NetworkConfig cfg) {
+    _disposeControllers();
     _networkName = TextEditingController(text: cfg.networkName);
     _networkSecret = TextEditingController(text: cfg.networkSecret);
     _instanceName = TextEditingController(text: cfg.instanceName);
@@ -68,8 +69,7 @@ class _NetworksScreenState extends State<NetworksScreen> {
     _magicDns = cfg.extraFlags['accept_dns'] == true;
   }
 
-  @override
-  void dispose() {
+  void _disposeControllers() {
     _networkName.dispose();
     _networkSecret.dispose();
     _instanceName.dispose();
@@ -79,6 +79,11 @@ class _NetworksScreenState extends State<NetworksScreen> {
     _peers.dispose();
     _routes.dispose();
     _exitNodes.dispose();
+  }
+
+  @override
+  void dispose() {
+    _disposeControllers();
     super.dispose();
   }
 

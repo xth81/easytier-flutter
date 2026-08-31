@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 
 import '../../core/state/easytier_controller.dart';
@@ -29,16 +27,10 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  Timer? _clock;
-
   @override
   void initState() {
     super.initState();
     widget.controller.addListener(_rebuild);
-    _clock = Timer.periodic(const Duration(seconds: 1), (_) {
-      // Refresh uptime tick; status updates flow through ChangeNotifier.
-      if (mounted) setState(() {});
-    });
   }
 
   @override
@@ -53,7 +45,6 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     widget.controller.removeListener(_rebuild);
-    _clock?.cancel();
     super.dispose();
   }
 
