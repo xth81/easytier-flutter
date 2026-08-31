@@ -43,8 +43,8 @@ class _NetworksScreenState extends State<NetworksScreen> {
   @override
   void didUpdateWidget(NetworksScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Reload when the controller swapped (backend toggle) or another screen
-    // saved a new config.
+    // Reload when the controller swapped (backend toggle). Saving is handled
+    // locally by this screen so the form is never clobbered by its own edits.
     if (oldWidget.controller != widget.controller) {
       final cfg = widget.controller.activeConfig ??
           AppSettings.instance.effectiveConfig;
